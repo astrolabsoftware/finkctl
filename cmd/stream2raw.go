@@ -9,6 +9,7 @@ import (
 	"log"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // stream2rawCmd represents the stream2raw command
@@ -23,11 +24,14 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("stream2raw called")
-		runSpark()
+
+		image = fmt.Sprintf("%v", viper.Get("image"))
+		// TODO check error
+		runSpark(image)
 	},
 }
 
-func runSpark() {
+func runSpark(image string) {
 
 	_, config := setKubeClient()
 
@@ -40,7 +44,7 @@ func runSpark() {
     --deploy-mode cluster \
     --conf spark.executor.instances=1 \
     --conf spark.kubernetes.authenticate.driver.serviceAccountName=spark \
-    --conf spark.kubernetes.container.image="$IMAGE" \
+    --conf spark.kubernetes.container.image="%v" \
     --conf spark.driver.extraJavaOptions="-Divy.cache.dir=/home/fink -Divy.home=/home/fink" \
     $ci_opt \
     local:///home/fink/fink-broker/bin/%v \
@@ -50,7 +54,7 @@ func runSpark() {
     -online_data_prefix "${ONLINE_DATA_PREFIX}" \
     -tinterval "${FINK_TRIGGER_UPDATE}" -log_level "${LOG_LEVEL}"`
 
-	cmd := fmt.Sprintf(cmd_tpl, api_server_url, bin)
+	cmd := fmt.Sprintf(cmd_tpl, api_server_url, image, bin)
 
 	out, errout, err := Shellout(cmd)
 	if err != nil {

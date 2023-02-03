@@ -1,6 +1,5 @@
 /*
 Copyright © 2023 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
@@ -8,7 +7,10 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
+
+var image string
 
 // sparkCmd represents the spark command
 var sparkCmd = &cobra.Command{
@@ -22,6 +24,7 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("spark called")
+
 	},
 }
 
@@ -33,6 +36,10 @@ func init() {
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
 	// sparkCmd.PersistentFlags().String("foo", "", "A help for foo")
+
+	viper.AutomaticEnv()
+	sparkCmd.PersistentFlags().String("image", "", "fink-broker image name")
+	viper.BindPFlag("image", sparkCmd.PersistentFlags().Lookup("image"))
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
