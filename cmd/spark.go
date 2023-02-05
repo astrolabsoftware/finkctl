@@ -10,8 +10,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-var image string
-
 // sparkCmd represents the spark command
 var sparkCmd = &cobra.Command{
 	Use:   "spark",
@@ -28,6 +26,18 @@ to quickly create a Cobra application.`,
 	},
 }
 
+var sparkArgs = map[string]interface{}{
+	"image":                 "delicious",
+	"producer":              "delicious",
+	"kafka_socket":          "delicious",
+	"kafka_topic":           "delicious",
+	"fink_alert_schema":     "delicious",
+	"kafka_starting_sffset": "delicious",
+	"online_data_prefix":    "delicious",
+	"fink_trigger_update":   "delicious",
+	"log_level":             "delicious",
+}
+
 func init() {
 	rootCmd.AddCommand(sparkCmd)
 
@@ -38,8 +48,11 @@ func init() {
 	// sparkCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	viper.AutomaticEnv()
-	sparkCmd.PersistentFlags().String("image", "", "fink-broker image name")
-	viper.BindPFlag("image", sparkCmd.PersistentFlags().Lookup("image"))
+
+	for option := range sparkArgs {
+		sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
+		viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
+	}
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:

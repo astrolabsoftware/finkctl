@@ -24,35 +24,41 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("stream2raw called")
 
-		image = fmt.Sprintf("%v", viper.Get("image"))
+		for option := range sparkArgs {
+			sparkArgs[option] = viper.GetString(option)
+		}
+
+		log.Printf("Args %v", sparkArgs)
+
 		// TODO check error
-		runSpark(image)
+		runSpark(sparkArgs)
 	},
 }
 
-func runSpark(image string) {
+func runSpark(sparkArgs map[string]interface{}) {
 
 	_, config := setKubeClient()
 
-	api_server_url := config.Host
+	apiServerUrl := config.Host
 
-	bin := "stream2raw.py"
+	sparkArgs["api_server_url"] = apiServerUrl
+	sparkArgs["bin"] = "stream2raw.py"
 
-	cmd_tpl := `spark-submit --master "k8s://%v" \
+	cmdTpl := `spark-submit --master "k8s://{{ .api_server_url }}" \
     --deploy-mode cluster \
     --conf spark.executor.instances=1 \
     --conf spark.kubernetes.authenticate.driver.serviceAccountName=spark \
-    --conf spark.kubernetes.container.image="%v" \
+    --conf spark.kubernetes.container.image="{{ .image }}" \
     --conf spark.driver.extraJavaOptions="-Divy.cache.dir=/home/fink -Divy.home=/home/fink" \
     $ci_opt \
-    local:///home/fink/fink-broker/bin/%v \
-    -producer "${PRODUCER}" \
-    -servers "${KAFKA_SOCKET}" -topic "${KAFKA_TOPIC}" \
-    -schema "${FINK_ALERT_SCHEMA}" -startingoffsets_stream "${KAFKA_STARTING_OFFSET}" \
-    -online_data_prefix "${ONLINE_DATA_PREFIX}" \
-    -tinterval "${FINK_TRIGGER_UPDATE}" -log_level "${LOG_LEVEL}"`
+    local:///home/fink/fink-broker/bin/{{ .bin }} \
+    -producer "{{ .producer }}" \
+    -servers "{{ .kafka_socket }}" -topic "{{ .kafka_topic }}" \
+    -schema "{{ .fink_alert_schema }}" -startingoffsets_stream "{{ .kafka_starting_offset }}" \
+    -online_data_prefix "{{ .online_data_prefix }}" \
+    -tinterval "{{ .fink_trigger_update }}" -log_level "{{ .log_level }}"`
 
-	cmd := fmt.Sprintf(cmd_tpl, api_server_url, image, bin)
+	cmd := format(cmdTpl, sparkArgs)
 
 	out, errout := ExecCmd(cmd)
 
