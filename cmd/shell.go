@@ -2,6 +2,9 @@ package cmd
 
 import (
 	"bytes"
+	"io"
+	"log"
+	"os"
 	"os/exec"
 )
 
@@ -9,17 +12,21 @@ const ShellToUse = "bash"
 
 type OutMsg struct {
 	cmd    string
-	err    error
 	out    string
 	errout string
 }
 
-func Shellout(command string) (string, string, error) {
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
+func ExecCmd(command string) (string, string) {
 	cmd := exec.Command(ShellToUse, "-c", command)
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+
+	var stdoutBuf, stderrBuf bytes.Buffer
+	cmd.Stdout = io.MultiWriter(os.Stdout, &stdoutBuf)
+	cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
+
 	err := cmd.Run()
-	return stdout.String(), stderr.String(), err
+	if err != nil {
+		log.Fatalf("cmd.Run() failed with %s\n", err)
+	}
+
+	return stdoutBuf.String(), stderrBuf.String()
 }

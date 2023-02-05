@@ -4,7 +4,6 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"log"
 
@@ -39,7 +38,6 @@ func runSpark(image string) {
 
 	bin := "stream2raw.py"
 
-	var err_out error
 	cmd_tpl := `spark-submit --master "k8s://%v" \
     --deploy-mode cluster \
     --conf spark.executor.instances=1 \
@@ -56,15 +54,10 @@ func runSpark(image string) {
 
 	cmd := fmt.Sprintf(cmd_tpl, api_server_url, image, bin)
 
-	out, errout, err := Shellout(cmd)
-	if err != nil {
-		err_msg := fmt.Sprintf("error creating kind cluster: %v\n", err)
-		err_out = errors.New(err_msg)
-	}
+	out, errout := ExecCmd(cmd)
 
 	outmsg := OutMsg{
 		cmd:    cmd,
-		err:    err_out,
 		out:    out,
 		errout: errout}
 
