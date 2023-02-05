@@ -10,8 +10,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-var image string
-
 // sparkCmd represents the spark command
 var sparkCmd = &cobra.Command{
 	Use:   "spark",
@@ -28,6 +26,18 @@ to quickly create a Cobra application.`,
 	},
 }
 
+var sparkArgs = map[string]interface{}{
+	"image":                 "delicious",
+	"producer":              "delicious",
+	"kafka_socket":          "delicious",
+	"kafka_topic":           "delicious",
+	"fink_alert_schema":     "delicious",
+	"kafka_starting_sffset": "delicious",
+	"online_data_prefix":    "delicious",
+	"fink_trigger_update":   "delicious",
+	"log_level":             "delicious",
+}
+
 func init() {
 	rootCmd.AddCommand(sparkCmd)
 
@@ -38,33 +48,11 @@ func init() {
 	// sparkCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	viper.AutomaticEnv()
-	option := "image"
-	sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
-	viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
-	option = "producer"
-	sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
-	viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
-	option = "kafka_socket"
-	sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
-	viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
-	option = "kafka_topic"
-	sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
-	viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
-	option = "fink_alert_schema"
-	sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
-	viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
-	option = "kafka_starting_offset"
-	sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
-	viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
-	option = "online_data_prefix"
-	sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
-	viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
-	option = "fink_trigger_update"
-	sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
-	viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
-	option = "log_level"
-	sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
-	viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
+
+	for option := range sparkArgs {
+		sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
+		viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
+	}
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:

@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
+	"text/template"
 )
 
 const ShellToUse = "bash"
@@ -17,6 +19,8 @@ type OutMsg struct {
 }
 
 func ExecCmd(command string) (string, string) {
+
+	log.Printf("Launch command: %v", command)
 	cmd := exec.Command(ShellToUse, "-c", command)
 
 	var stdoutBuf, stderrBuf bytes.Buffer
@@ -29,4 +33,10 @@ func ExecCmd(command string) (string, string) {
 	}
 
 	return stdoutBuf.String(), stderrBuf.String()
+}
+
+func format(s string, v interface{}) string {
+	t, b := new(template.Template), new(strings.Builder)
+	template.Must(t.Parse(s)).Execute(b, v)
+	return b.String()
 }
