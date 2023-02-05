@@ -38,8 +38,33 @@ func init() {
 	// sparkCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	viper.AutomaticEnv()
-	sparkCmd.PersistentFlags().String("image", "", "fink-broker image name")
-	viper.BindPFlag("image", sparkCmd.PersistentFlags().Lookup("image"))
+	option := "image"
+	sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
+	viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
+	option = "producer"
+	sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
+	viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
+	option = "kafka_socket"
+	sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
+	viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
+	option = "kafka_topic"
+	sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
+	viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
+	option = "fink_alert_schema"
+	sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
+	viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
+	option = "kafka_starting_offset"
+	sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
+	viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
+	option = "online_data_prefix"
+	sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
+	viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
+	option = "fink_trigger_update"
+	sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
+	viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
+	option = "log_level"
+	sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
+	viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
