@@ -11,6 +11,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+var minimal bool
+
 // sparkCmd represents the spark command
 var sparkCmd = &cobra.Command{
 	Use:   "spark",
@@ -48,14 +50,28 @@ func init() {
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// sparkCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	viper.AutomaticEnv()
+	sparkCmd.PersistentFlags().BoolVarP(&minimal, "minimal", "m", false, "Set minimal cpu/memory requests for spark pods")
 
 	for option := range sparkArgs {
 		sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
 		viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
 	}
+
+	// log.Printf("CONFIG::: %s\n", cfgFile)
+	// if cfgFile != "" {
+	// 	// Use config file from the flag.
+	// 	viper.SetConfigFile(cfgFile)
+	// }
+
+	// If a config file is found, read it in.
+	// if err := viper.ReadInConfig(); err == nil {
+	// 	fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+	// }
+	// fmt.Fprintln(os.Stdout, "Using config file:", viper.ConfigFileUsed())
+
+	// for option := range sparkArgs {
+	// 	log.Printf("option %v", viper.GetString(option))
+	// }
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
@@ -76,8 +92,15 @@ func runSpark(sparkArgs map[string]interface{}) {
     --conf spark.kubernetes.authenticate.driver.serviceAccountName=spark \
     --conf spark.kubernetes.container.image="{{ .image }}" \
     --conf spark.driver.extraJavaOptions="-Divy.cache.dir=/home/fink -Divy.home=/home/fink" \
-    $ci_opt \
-    local:///home/fink/fink-broker/bin/{{ .bin }} \
+    `
+	if minimal {
+		cmdTpl += `--conf spark.kubernetes.driver.request.cores=0 \
+    --conf spark.kubernetes.executor.request.cores=0 \
+    --conf spark.driver.memory=500m \
+    --conf spark.executor.memory=500m \
+    `
+	}
+	cmdTpl += `local:///home/fink/fink-broker/bin/{{ .bin }} \
     -log_level "{{ .log_level }}" \
     -online_data_prefix "{{ .online_data_prefix }}" \
     -producer "{{ .producer }}" \
