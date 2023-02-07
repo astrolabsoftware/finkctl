@@ -11,10 +11,20 @@ import (
 	"github.com/spf13/viper"
 )
 
+const STREAM2RAW string = "stream2raw"
+
+type Stream2RawConfig struct {
+	KafkaSocket         string `mapstructure:"kafka_socket"`
+	KafkaTopic          string `mapstructure:"kafka_topic"`
+	FinkAlertSchema     string `mapstructure:"fink_alert_schema"`
+	KafkaStartingOffset string `mapstructure:"kafka_starting_offset"`
+}
+
 // stream2rawCmd represents the stream2raw command
 var stream2rawCmd = &cobra.Command{
-	Use:   "stream2raw",
-	Short: "A brief description of your command",
+	Use:     STREAM2RAW,
+	Aliases: []string{"s2"},
+	Short:   "Launch 'stream2raw' job on Spark",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
@@ -22,17 +32,26 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
+
 		fmt.Println("stream2raw called")
 
-		for option := range sparkArgs {
-			sparkArgs[option] = viper.GetString(option)
-		}
+		sc := getSparkConfig()
+		sc.Binary = fmt.Sprintf("%s.py", STREAM2RAW)
+		sparkCmd := generateSparkCmd(sc)
 
-		log.Printf("Args %v", sparkArgs)
+		cmdTpl := sparkCmd + `-servers "{{ .KafkaSocket }}" \
+    -schema "{{ .FinkAlertSchema }}" \
+    -startingoffsets_stream "{{ .KafkaStartingOffset }}" \
+    -topic "{{ .KafkaTopic }}"`
+		c := getStream2RawConfig()
+		sparkCmd = format(cmdTpl, &c)
 
-		// TODO check error
-		sparkArgs["bin"] = "stream2raw.py"
-		runSpark(sparkArgs)
+		out, errout := ExecCmd(sparkCmd)
+		outmsg := OutMsg{
+			cmd:    sparkCmd,
+			out:    out,
+			errout: errout}
+		log.Printf("message: %v\n", outmsg)
 	},
 }
 
@@ -48,4 +67,12 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// stream2rawCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+}
+
+func getStream2RawConfig() Stream2RawConfig {
+	var c Stream2RawConfig
+	if err := viper.UnmarshalKey(STREAM2RAW, &c); err != nil {
+		log.Fatalf("Error while getting %s configuration: %v", STREAM2RAW, err)
+	}
+	return c
 }

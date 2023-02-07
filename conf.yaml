@@ -1,0 +1,13 @@
+spark:
+  fink_trigger_update: "2"
+  # image: gitlab-registry.in2p3.fr/astrolabsoftware/fink/fink-broker:2.7.1-20-gbd9d92b
+  online_data_prefix: /home/fink/fink-broker/online
+  producer: sims
+  log_level: INFO
+stream2raw:
+  fink_alert_schema: /home/fink/fink-alert-schemas/ztf/ztf_public_20190903.schema.avro
+  kafka_socket: kafka-cluster-kafka-external-bootstrap.kafka:9094
+  kafka_starting_offset: earliest
+  kafka_topic: ztf-stream-sim
+raw2science:
+  night: "20190903"

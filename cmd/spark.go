@@ -11,10 +11,13 @@ import (
 	"github.com/spf13/viper"
 )
 
+var minimal bool
+
 // sparkCmd represents the spark command
 var sparkCmd = &cobra.Command{
-	Use:   "spark",
-	Short: "A brief description of your command",
+	Use:     "spark",
+	Aliases: []string{"s"},
+	Short:   "A brief description of your command",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
@@ -22,23 +25,33 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("spark called")
-
+		fmt.Println("Display Spark Configuration")
+		var sc SparkConfig
+		if err := viper.UnmarshalKey("spark", &sc); err != nil {
+			fmt.Println(err)
+		}
+		fmt.Println(sc)
+		var s2rc Stream2RawConfig
+		if err := viper.UnmarshalKey("stream2raw", &s2rc); err != nil {
+			fmt.Println(err)
+		}
+		fmt.Println(s2rc)
+		var r2sc Raw2ScienceConfig
+		if err := viper.UnmarshalKey("raw2science", &r2sc); err != nil {
+			fmt.Println(err)
+		}
+		fmt.Println(r2sc)
 	},
 }
 
-// TODO split parameters for stream2raw and raw2science
-var sparkArgs = map[string]interface{}{
-	"image":                 "delicious",
-	"producer":              "delicious",
-	"kafka_socket":          "delicious",
-	"kafka_topic":           "delicious",
-	"fink_alert_schema":     "delicious",
-	"kafka_starting_offset": "delicious",
-	"online_data_prefix":    "delicious",
-	"fink_trigger_update":   "delicious",
-	"log_level":             "delicious",
-	"night":                 "delicious",
+type SparkConfig struct {
+	ApiServerUrl      string
+	Binary            string
+	Image             string `mapstructure:"image"`
+	Producer          string `mapstructure:"producer"`
+	OnlineDataPrefix  string `mapstructure:"online_data_prefix"`
+	FinkTriggerUpdate string `mapstructure:"fink_trigger_update"`
+	LogLevel          string `mapstructure:"log_level"`
 }
 
 func init() {
@@ -48,48 +61,79 @@ func init() {
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// sparkCmd.PersistentFlags().String("foo", "", "A help for foo")
+	sparkCmd.PersistentFlags().BoolVarP(&minimal, "minimal", "m", false, "Set minimal cpu/memory requests for spark pods")
 
-	viper.AutomaticEnv()
+	sparkCmd.PersistentFlags().String("image", "", "fink-broker image name")
+	viper.BindPFlag("image", sparkCmd.PersistentFlags().Lookup("image"))
 
-	for option := range sparkArgs {
-		sparkCmd.PersistentFlags().String(option, "", "fink-broker image name")
-		viper.BindPFlag(option, sparkCmd.PersistentFlags().Lookup(option))
-	}
+	// log.Printf("CONFIG::: %s\n", cfgFile)
+	// if cfgFile != "" {
+	// 	// Use config file from the flag.
+	// 	viper.SetConfigFile(cfgFile)
+	// }
+
+	// If a config file is found, read it in.
+	// if err := viper.ReadInConfig(); err == nil {
+	// 	fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+	// }
+	// fmt.Fprintln(os.Stdout, "Using config file:", viper.ConfigFileUsed())
+
+	// for option := range sparkArgs {
+	// 	log.Printf("option %v", viper.GetString(option))
+	// }
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// sparkCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-func runSpark(sparkArgs map[string]interface{}) {
+func getSparkConfig() SparkConfig {
+	var c SparkConfig
+	if err := viper.UnmarshalKey("spark", &c); err != nil {
+		log.Fatalf("Error while getting spark configuration: %v", err)
+	}
+	if c.Image == "" {
+		c.Image = viper.GetString("image")
+	}
+	return c
+}
 
+func generateSparkCmd(sc SparkConfig) string {
 	_, config := setKubeClient()
 
 	apiServerUrl := config.Host
 
-	sparkArgs["api_server_url"] = apiServerUrl
+	sc.ApiServerUrl = apiServerUrl
 
-	cmdTpl := `spark-submit --master "k8s://{{ .api_server_url }}" \
+	cmdTpl := `spark-submit --master "k8s://{{ .ApiServerUrl }}" \
     --deploy-mode cluster \
     --conf spark.executor.instances=1 \
     --conf spark.kubernetes.authenticate.driver.serviceAccountName=spark \
-    --conf spark.kubernetes.container.image="{{ .image }}" \
+    --conf spark.kubernetes.container.image="{{ .Image }}" \
     --conf spark.driver.extraJavaOptions="-Divy.cache.dir=/home/fink -Divy.home=/home/fink" \
-    $ci_opt \
-    local:///home/fink/fink-broker/bin/{{ .bin }} \
-    -log_level "{{ .log_level }}" \
-    -online_data_prefix "{{ .online_data_prefix }}" \
-    -producer "{{ .producer }}" \
-    -tinterval "{{ .fink_trigger_update }}" \
     `
+	if minimal {
+		cmdTpl += `--conf spark.kubernetes.driver.request.cores=0 \
+    --conf spark.kubernetes.executor.request.cores=0 \
+    --conf spark.driver.memory=500m \
+    --conf spark.executor.memory=500m \
+    `
+	}
+	cmdTpl += `local:///home/fink/fink-broker/bin/{{ .Binary }} \
+    -log_level "{{ .LogLevel }}" \
+    -online_data_prefix "{{ .OnlineDataPrefix }}" \
+    -producer "{{ .Producer }}" \
+    -tinterval "{{ .FinkTriggerUpdate }}" \
+    `
+	cmd := format(cmdTpl, &sc)
+	return cmd
+}
 
+func runSpark(sparkArgs map[string]interface{}) {
+
+	cmdTpl := ""
 	switch sparkArgs["bin"] {
 	case "stream2raw.py":
-		cmdTpl += `-servers "{{ .kafka_socket }}"
-    -schema "{{ .fink_alert_schema }}"
-    -startingoffsets_stream "{{ .kafka_starting_offset }}" \
-    -topic "{{ .kafka_topic }}"`
 
 	case "raw2science.py":
 		cmdTpl += `-night "{{ .night }}"`
