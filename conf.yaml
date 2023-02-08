@@ -1,6 +1,7 @@
 spark:
   fink_trigger_update: "2"
-  # image: gitlab-registry.in2p3.fr/astrolabsoftware/fink/fink-broker:2.7.1-20-gbd9d92b
+  # Can be set using IMAGE environment variable
+  image: gitlab-registry.in2p3.fr/astrolabsoftware/fink/fink-broker:2.7.1-20-gbd9d92b
   online_data_prefix: /home/fink/fink-broker/online
   producer: sims
   log_level: INFO

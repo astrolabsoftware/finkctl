@@ -128,25 +128,3 @@ func generateSparkCmd(sc SparkConfig) string {
 	cmd := format(cmdTpl, &sc)
 	return cmd
 }
-
-func runSpark(sparkArgs map[string]interface{}) {
-
-	cmdTpl := ""
-	switch sparkArgs["bin"] {
-	case "stream2raw.py":
-
-	case "raw2science.py":
-		cmdTpl += `-night "{{ .night }}"`
-	}
-
-	cmd := format(cmdTpl, sparkArgs)
-
-	out, errout := ExecCmd(cmd)
-
-	outmsg := OutMsg{
-		cmd:    cmd,
-		out:    out,
-		errout: errout}
-
-	log.Printf("message: %v\n", outmsg)
-}
