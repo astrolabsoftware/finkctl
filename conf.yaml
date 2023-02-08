@@ -1,7 +1,8 @@
 spark:
   fink_trigger_update: "2"
-  # image: gitlab-registry.in2p3.fr/astrolabsoftware/fink/fink-broker:2.7.1-20-gbd9d92b
-  online_data_prefix: /home/fink/fink-broker/online
+  # Can be set using IMAGE environment variable
+  image: gitlab-registry.in2p3.fr/astrolabsoftware/fink/fink-broker:2.7.1-23-gd3fb164
+  online_data_prefix: s3a://fink-broker-online
   producer: sims
   log_level: INFO
 stream2raw:
@@ -11,3 +12,11 @@ stream2raw:
   kafka_topic: ztf-stream-sim
 raw2science:
   night: "20190903"
+distribution:
+  # Comma-separated list of kafka servers, default to stream2raw.kafka_socket
+  # distribution_servers: "kafka_server1:kafka_server2"
+  distribution_schema: "/home/fink/fink-alert-schemas/ztf/distribution_schema_0p2.avsc"
+  substream_prefix: "fink_"
+  # Default to stream2raw.night
+  # night: "20190903"
+

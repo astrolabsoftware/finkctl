@@ -31,9 +31,7 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("raw2science called")
 
-		sc := getSparkConfig()
-		sc.Binary = fmt.Sprintf("%s.py", RAW2SCIENCE)
-		sparkCmd := generateSparkCmd(sc)
+		sparkCmd := generateSparkCmd(RAW2SCIENCE)
 
 		cmdTpl := sparkCmd + `-night "{{ .Night }}"`
 		c := getRaw2ScienceConfig()

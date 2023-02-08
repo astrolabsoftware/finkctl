@@ -87,30 +87,48 @@ func init() {
 	// sparkCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-func getSparkConfig() SparkConfig {
+func getSparkConfig(task string) SparkConfig {
 	var c SparkConfig
 	if err := viper.UnmarshalKey("spark", &c); err != nil {
 		log.Fatalf("Error while getting spark configuration: %v", err)
 	}
+
+	if task == DISTRIBUTION {
+		c.Binary = DISTRIBUTION_BIN
+	} else {
+		c.Binary = fmt.Sprintf("%s.py", task)
+	}
+
+	_, config := setKubeClient()
+	apiServerUrl := config.Host
+	c.ApiServerUrl = apiServerUrl
+
 	if c.Image == "" {
 		c.Image = viper.GetString("image")
 	}
 	return c
 }
 
-func generateSparkCmd(sc SparkConfig) string {
-	_, config := setKubeClient()
+func generateSparkCmd(task string) string {
 
-	apiServerUrl := config.Host
+	sc := getSparkConfig(task)
+	return applyTemplate(sc)
+}
 
-	sc.ApiServerUrl = apiServerUrl
-
+func applyTemplate(sc SparkConfig) string {
 	cmdTpl := `spark-submit --master "k8s://{{ .ApiServerUrl }}" \
     --deploy-mode cluster \
     --conf spark.executor.instances=1 \
     --conf spark.kubernetes.authenticate.driver.serviceAccountName=spark \
     --conf spark.kubernetes.container.image="{{ .Image }}" \
     --conf spark.driver.extraJavaOptions="-Divy.cache.dir=/home/fink -Divy.home=/home/fink" \
+    --conf spark.hadoop.fs.s3a.endpoint=http://minio.minio-dev:9090 \
+    --conf spark.hadoop.fs.s3a.access.key="minioadmin" \
+    --conf spark.hadoop.fs.s3a.secret.key="minioadmin" \
+    --conf spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version=2 \
+    --conf spark.hadoop.fs.s3a.connection.ssl.enabled=false \
+    --conf spark.hadoop.fs.s3a.fast.upload=true \
+    --conf spark.hadoop.fs.s3a.impl="org.apache.hadoop.fs.s3a.S3AFileSystem" \
     `
 	if minimal {
 		cmdTpl += `--conf spark.kubernetes.driver.request.cores=0 \
@@ -127,26 +145,4 @@ func generateSparkCmd(sc SparkConfig) string {
     `
 	cmd := format(cmdTpl, &sc)
 	return cmd
-}
-
-func runSpark(sparkArgs map[string]interface{}) {
-
-	cmdTpl := ""
-	switch sparkArgs["bin"] {
-	case "stream2raw.py":
-
-	case "raw2science.py":
-		cmdTpl += `-night "{{ .night }}"`
-	}
-
-	cmd := format(cmdTpl, sparkArgs)
-
-	out, errout := ExecCmd(cmd)
-
-	outmsg := OutMsg{
-		cmd:    cmd,
-		out:    out,
-		errout: errout}
-
-	log.Printf("message: %v\n", outmsg)
 }
