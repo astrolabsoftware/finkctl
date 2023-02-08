@@ -37,6 +37,9 @@ func ExecCmd(command string) (string, string) {
 
 func format(s string, v interface{}) string {
 	t, b := new(template.Template), new(strings.Builder)
-	template.Must(t.Parse(s)).Execute(b, v)
+	err := template.Must(t.Parse(s)).Execute(b, v)
+	if err != nil {
+		log.Fatalf("Error while formatting string %s: %v", s, err)
+	}
 	return b.String()
 }
