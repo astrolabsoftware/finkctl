@@ -87,24 +87,35 @@ func init() {
 	// sparkCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-func getSparkConfig() SparkConfig {
+func getSparkConfig(task string) SparkConfig {
 	var c SparkConfig
 	if err := viper.UnmarshalKey("spark", &c); err != nil {
 		log.Fatalf("Error while getting spark configuration: %v", err)
 	}
+
+	if task == DISTRIBUTION {
+		c.Binary = DISTRIBUTION_BIN
+	} else {
+		c.Binary = fmt.Sprintf("%s.py", task)
+	}
+
+	_, config := setKubeClient()
+	apiServerUrl := config.Host
+	c.ApiServerUrl = apiServerUrl
+
 	if c.Image == "" {
 		c.Image = viper.GetString("image")
 	}
 	return c
 }
 
-func generateSparkCmd(sc SparkConfig) string {
-	_, config := setKubeClient()
+func generateSparkCmd(task string) string {
 
-	apiServerUrl := config.Host
+	sc := getSparkConfig(task)
+	return applyTemplate(sc)
+}
 
-	sc.ApiServerUrl = apiServerUrl
-
+func applyTemplate(sc SparkConfig) string {
 	cmdTpl := `spark-submit --master "k8s://{{ .ApiServerUrl }}" \
     --deploy-mode cluster \
     --conf spark.executor.instances=1 \

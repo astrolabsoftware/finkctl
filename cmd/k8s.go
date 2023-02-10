@@ -23,7 +23,6 @@ func getKubeConfig() string {
 		cobra.CheckErr(err)
 		kubeConfigFilename = path.Join(home, kubeConfigDefaultFilename)
 	}
-
 	return kubeConfigFilename
 }
 

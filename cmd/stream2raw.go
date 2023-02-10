@@ -35,9 +35,7 @@ to quickly create a Cobra application.`,
 
 		fmt.Println("stream2raw called")
 
-		sc := getSparkConfig()
-		sc.Binary = fmt.Sprintf("%s.py", STREAM2RAW)
-		sparkCmd := generateSparkCmd(sc)
+		sparkCmd := generateSparkCmd(STREAM2RAW)
 
 		cmdTpl := sparkCmd + `-servers "{{ .KafkaSocket }}" \
     -schema "{{ .FinkAlertSchema }}" \

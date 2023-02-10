@@ -40,7 +40,6 @@ to quickly create a Cobra application.`,
 			}
 			log.Printf("Delete pod %s", p.Name)
 		}
-
 	},
 }
 

@@ -18,21 +18,10 @@ func TestGetSparkCmd(t *testing.T) {
 		LogLevel:          "INFO",
 	}
 
-	// s2rc := Stream2RawConfig{
-	// 	KafkaSocket:         "kafka-cluster-kafka-external-bootstrap.kafka:9094",
-	// 	KafkaTopic:          "ztf-stream-sim",
-	// 	FinkAlertSchema:     "/home/fink/fink-alert-schemas/ztf/ztf_public_20190903.schema.avro",
-	// 	KafkaStartingOffset: "earliest",
-	// }
+	sc.Binary = "changeme.py"
+	sparkCmd := applyTemplate(sc)
 
-	// r2sc := Raw2ScienceConfig{
-	// 	Night: "20190903",
-	// }
-
-	sc.Binary = "stream2raw.py"
-
-	cmd := generateSparkCmd(sc)
-	log.Printf("CMD %v", cmd)
+	log.Printf("CMD %v", sparkCmd)
 }
 
 func TestViperReadConfigFile(t *testing.T) {
