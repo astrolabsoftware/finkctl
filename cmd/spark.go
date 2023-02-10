@@ -122,6 +122,13 @@ func applyTemplate(sc SparkConfig) string {
     --conf spark.kubernetes.authenticate.driver.serviceAccountName=spark \
     --conf spark.kubernetes.container.image="{{ .Image }}" \
     --conf spark.driver.extraJavaOptions="-Divy.cache.dir=/home/fink -Divy.home=/home/fink" \
+    --conf spark.hadoop.fs.s3a.endpoint=http://minio.minio-dev:9090 \
+    --conf spark.hadoop.fs.s3a.access.key="minioadmin" \
+    --conf spark.hadoop.fs.s3a.secret.key="minioadmin" \
+    --conf spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version=2 \
+    --conf spark.hadoop.fs.s3a.connection.ssl.enabled=false \
+    --conf spark.hadoop.fs.s3a.fast.upload=true \
+    --conf spark.hadoop.fs.s3a.impl="org.apache.hadoop.fs.s3a.S3AFileSystem" \
     `
 	if minimal {
 		cmdTpl += `--conf spark.kubernetes.driver.request.cores=0 \
