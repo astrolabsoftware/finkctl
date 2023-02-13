@@ -2,7 +2,7 @@
 # ----------------
 # Repository address
 REPO="gitlab-registry.in2p3.fr/astrolabsoftware/fink"
-IMAGE_TAG="2.7.1-20-gd3fb164"
+IMAGE_TAG="2.7.1-26-gbb3ec8c"
 export IMAGE="$REPO/fink-broker:$IMAGE_TAG"
 
 
