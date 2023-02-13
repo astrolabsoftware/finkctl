@@ -119,7 +119,7 @@ func applyTemplate(sc SparkConfig) string {
 	// TODO check https://docs.cloudera.com/cdp-private-cloud-base/7.1.8/ozone-storing-data/topics/ozone-config-spark-s3a.html
 	cmdTpl := `spark-submit --master "k8s://{{ .ApiServerUrl }}" \
     --deploy-mode cluster \
-    --packages "org.apache.spark:spark-core_2.12:3.2.1,com.amazonaws:aws-java-sdk:1.11.967,org.apache.hadoop:hadoop-aws:3.2.3,org.apache.hadoop:hadoop-common:3.2.1,org.apache.hadoop:hadoop-client:3.2.1" \
+    --packages "com.amazonaws:aws-java-sdk:1.11.375,org.apache.hadoop:hadoop-aws:3.2.3" \
     --conf spark.executor.instances=1 \
     --conf spark.kubernetes.authenticate.driver.serviceAccountName=spark \
     --conf spark.kubernetes.container.image="{{ .Image }}" \
