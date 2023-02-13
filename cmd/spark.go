@@ -116,18 +116,21 @@ func generateSparkCmd(task string) string {
 }
 
 func applyTemplate(sc SparkConfig) string {
+	// TODO check https://docs.cloudera.com/cdp-private-cloud-base/7.1.8/ozone-storing-data/topics/ozone-config-spark-s3a.html
 	cmdTpl := `spark-submit --master "k8s://{{ .ApiServerUrl }}" \
     --deploy-mode cluster \
+    --packages "org.apache.spark:spark-core_2.12:3.2.1,com.amazonaws:aws-java-sdk:1.11.967,org.apache.hadoop:hadoop-aws:3.2.3,org.apache.hadoop:hadoop-common:3.2.1,org.apache.hadoop:hadoop-client:3.2.1" \
     --conf spark.executor.instances=1 \
     --conf spark.kubernetes.authenticate.driver.serviceAccountName=spark \
     --conf spark.kubernetes.container.image="{{ .Image }}" \
     --conf spark.driver.extraJavaOptions="-Divy.cache.dir=/home/fink -Divy.home=/home/fink" \
-    --conf spark.hadoop.fs.s3a.endpoint=http://minio.minio-dev:9090 \
+    --conf spark.hadoop.fs.s3a.endpoint=http://minio.minio-dev:9000 \
     --conf spark.hadoop.fs.s3a.access.key="minioadmin" \
     --conf spark.hadoop.fs.s3a.secret.key="minioadmin" \
     --conf spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version=2 \
     --conf spark.hadoop.fs.s3a.connection.ssl.enabled=false \
     --conf spark.hadoop.fs.s3a.fast.upload=true \
+    --conf spark.hadoop.fs.s3a.path.style.access=true \
     --conf spark.hadoop.fs.s3a.impl="org.apache.hadoop.fs.s3a.S3AFileSystem" \
     `
 	if minimal {
