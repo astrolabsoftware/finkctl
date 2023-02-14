@@ -50,6 +50,7 @@ type SparkConfig struct {
 	Image             string `mapstructure:"image"`
 	Producer          string `mapstructure:"producer"`
 	OnlineDataPrefix  string `mapstructure:"online_data_prefix"`
+	Packages          string
 	FinkTriggerUpdate string `mapstructure:"fink_trigger_update"`
 	LogLevel          string `mapstructure:"log_level"`
 }
@@ -116,14 +117,24 @@ func generateSparkCmd(task string) string {
 }
 
 func applyTemplate(sc SparkConfig) string {
+
+	// WARNING package are not deployed in spark-executor
+	// see https://stackoverflow.com/a/67299668/2784039
+	sc.Packages = `org.apache.spark:spark-streaming-kafka-0-10-assembly_2.12:3.2.3,\
+org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.3,\
+org.apache.spark:spark-avro_2.12:3.2.3,\
+org.apache.spark:spark-token-provider-kafka-0-10_2.12:3.2.3,\
+org.apache.hbase:hbase-shaded-mapreduce:2.2.7,\
+com.amazonaws:aws-java-sdk-bundle:1.11.375,\
+org.apache.hadoop:hadoop-aws:3.2.3`
+
 	// TODO check https://docs.cloudera.com/cdp-private-cloud-base/7.1.8/ozone-storing-data/topics/ozone-config-spark-s3a.html
 	cmdTpl := `spark-submit --master "k8s://{{ .ApiServerUrl }}" \
     --deploy-mode cluster \
-    --packages "com.amazonaws:aws-java-sdk:1.11.375,org.apache.hadoop:hadoop-aws:3.2.3" \
     --conf spark.executor.instances=1 \
     --conf spark.kubernetes.authenticate.driver.serviceAccountName=spark \
     --conf spark.kubernetes.container.image="{{ .Image }}" \
-    --conf spark.driver.extraJavaOptions="-Divy.cache.dir=/home/fink -Divy.home=/home/fink" \
+    --conf spark.driver.extraJavaOptions="-Divy.cache.dir=/tmp -Divy.home=/tmp" \
     --conf spark.hadoop.fs.s3a.endpoint=http://minio.minio-dev:9000 \
     --conf spark.hadoop.fs.s3a.access.key="minioadmin" \
     --conf spark.hadoop.fs.s3a.secret.key="minioadmin" \
@@ -131,6 +142,7 @@ func applyTemplate(sc SparkConfig) string {
     --conf spark.hadoop.fs.s3a.connection.ssl.enabled=false \
     --conf spark.hadoop.fs.s3a.fast.upload=true \
     --conf spark.hadoop.fs.s3a.path.style.access=true \
+    --conf spark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider \
     --conf spark.hadoop.fs.s3a.impl="org.apache.hadoop.fs.s3a.S3AFileSystem" \
     `
 	if minimal {
