@@ -23,14 +23,16 @@ type Stream2RawConfig struct {
 // stream2rawCmd represents the stream2raw command
 var stream2rawCmd = &cobra.Command{
 	Use:     STREAM2RAW,
-	Aliases: []string{"s2"},
-	Short:   "Launch 'stream2raw' job on Spark",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Aliases: []string{"s2r"},
+	Short:   "Launch Stream2raw service on Spark over Kubernetes",
+	Long: `Launch Stream2raw service on Spark over Kubernetes. Stream2raw retrieves data from a Kafka stream and writes it to a
+shared file system for further processing and analysis.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+Examples:
+  # Lauch stream2raw service on Spark, over Kubernetes
+  finkctl spark stream2raw
+  # Lauch stream2raw using a custom image
+  finkctl spark stream2raw --image=gitlab-registry.in2p3.fr/astrolabsoftware/fink/fink-broker:2076184`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		fmt.Println("stream2raw called")

@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v2"
 )
 
 var minimal bool
@@ -16,31 +17,19 @@ var minimal bool
 // sparkCmd represents the spark command
 var sparkCmd = &cobra.Command{
 	Use:     "spark",
-	Aliases: []string{"s"},
-	Short:   "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Aliases: []string{"spk"},
+	Short:   "Display Fink-broker parameters, for running it on Spark over Kubernetes",
+	Long: `Display all spark-submit parameters for running fink-broker on Spark over Kubernetes
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+TODO`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Display Spark Configuration")
-		var sc SparkConfig
-		if err := viper.UnmarshalKey("spark", &sc); err != nil {
-			fmt.Println(err)
+		fmt.Println("Display current finkctl configuration")
+		c := viper.AllSettings()
+		bs, err := yaml.Marshal(c)
+		if err != nil {
+			log.Fatalf("unable to marshal config to YAML: %v", err)
 		}
-		fmt.Println(sc)
-		var s2rc Stream2RawConfig
-		if err := viper.UnmarshalKey("stream2raw", &s2rc); err != nil {
-			fmt.Println(err)
-		}
-		fmt.Println(s2rc)
-		var r2sc Raw2ScienceConfig
-		if err := viper.UnmarshalKey("raw2science", &r2sc); err != nil {
-			fmt.Println(err)
-		}
-		fmt.Println(r2sc)
+		fmt.Printf("%s", bs)
 	},
 }
 
@@ -65,27 +54,7 @@ func init() {
 	sparkCmd.PersistentFlags().BoolVarP(&minimal, "minimal", "m", false, "Set minimal cpu/memory requests for spark pods")
 
 	sparkCmd.PersistentFlags().String("image", "", "fink-broker image name")
-	viper.BindPFlag("image", sparkCmd.PersistentFlags().Lookup("image"))
-
-	// log.Printf("CONFIG::: %s\n", cfgFile)
-	// if cfgFile != "" {
-	// 	// Use config file from the flag.
-	// 	viper.SetConfigFile(cfgFile)
-	// }
-
-	// If a config file is found, read it in.
-	// if err := viper.ReadInConfig(); err == nil {
-	// 	fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
-	// }
-	// fmt.Fprintln(os.Stdout, "Using config file:", viper.ConfigFileUsed())
-
-	// for option := range sparkArgs {
-	// 	log.Printf("option %v", viper.GetString(option))
-	// }
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// sparkCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	viper.BindPFlag("spark.image", sparkCmd.PersistentFlags().Lookup("image"))
 }
 
 func getSparkConfig(task string) SparkConfig {

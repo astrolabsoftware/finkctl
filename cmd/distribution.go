@@ -26,14 +26,9 @@ type DistributionConfig struct {
 // distributionCmd represents the distribution command
 var distributionCmd = &cobra.Command{
 	Use:     DISTRIBUTION,
-	Aliases: []string{"di"},
-	Short:   "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Aliases: []string{"d", "dis"},
+	Short:   "Launch Distribution service on Spark over Kubernetes",
+	Long:    `TODO`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("distribution called")
 
@@ -53,41 +48,6 @@ to quickly create a Cobra application.`,
 			errout: errout}
 		log.Printf("message: %v\n", outmsg)
 	},
-
-	/*
-		elif [[ $service == "distribution" ]]; then
-		  if [[ $ELASTICC == true ]]; then
-		    SCRIPT=${FINK_HOME}/bin/distribute_elasticc.py
-		  else
-		    SCRIPT=${FINK_HOME}/bin/distribute.py
-		  fi
-		  # Read configuration for redistribution
-		  source ${FINK_HOME}/conf/fink.conf.distribution
-		  # Start the Spark Producer
-		  spark-submit --master ${SPARK_MASTER} \
-		  --files ${FINK_HOME}/conf/fink_kafka_producer_jaas.conf \
-		  --driver-java-options "-Djava.security.auth.login.config=${FINK_PRODUCER_JAAS}" \
-		  --conf "spark.driver.extraJavaOptions=-Djava.security.auth.login.config=${FINK_PRODUCER_JAAS}" \
-		  --conf "spark.executor.extraJavaOptions=-Djava.security.auth.login.config=${FINK_PRODUCER_JAAS}" \
-		  $SCRIPT ${HELP_ON_SERVICE} \
-		  -producer ${PRODUCER} \
-		  -online_data_prefix ${ONLINE_DATA_PREFIX} \
-		  -distribution_servers ${DISTRIBUTION_SERVERS} \
-		  -distribution_schema ${DISTRIBUTION_SCHEMA} \
-		  -substream_prefix ${SUBSTREAM_PREFIX} \
-		  -tinterval ${FINK_TRIGGER_UPDATE} \
-		  -night ${NIGHT} \
-		  -log_level ${LOG_LEVEL} ${EXIT_AFTER}
-	*/
-
-	/*
-		 	files: /home/fink/fink-broker/conf/fink_kafka_producer_jaas.conf
-			driver-java-options: "-Djava.security.auth.login.config=${FINK_PRODUCER_JAAS}"
-			--conf spark.kubernetes.driver.secrets.spark-secret=/etc/secrets
-			--conf spark.kubernetes.executor.secrets.spark-secret=/etc/secrets
-			--conf "spark.driver.extraJavaOptions=-Djava.security.auth.login.config=${FINK_PRODUCER_JAAS}"
-			--conf "spark.executor.extraJavaOptions=-Djava.security.auth.login.config=${FINK_PRODUCER_JAAS}"
-	*/
 }
 
 func init() {
