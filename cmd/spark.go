@@ -73,9 +73,8 @@ func getSparkConfig(task string) SparkConfig {
 	apiServerUrl := config.Host
 	c.ApiServerUrl = apiServerUrl
 
-	if c.Image == "" {
-		c.Image = viper.GetString("image")
-	}
+	c.Image = viper.GetString("spark.image")
+
 	return c
 }
 
