@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -20,18 +21,25 @@ type OutMsg struct {
 
 func ExecCmd(command string) (string, string) {
 
-	log.Printf("Launch command: %v", command)
-	cmd := exec.Command(ShellToUse, "-c", command)
-
 	var stdoutBuf, stderrBuf bytes.Buffer
-	cmd.Stdout = io.MultiWriter(os.Stdout, &stdoutBuf)
-	cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
+	if !dryRun {
+		log.Printf("Launch command: %v", command)
+		cmd := exec.Command(ShellToUse, "-c", command)
 
-	err := cmd.Run()
-	if err != nil {
-		log.Fatalf("cmd.Run() failed with %s\n", err)
+		cmd.Stdout = io.MultiWriter(os.Stdout, &stdoutBuf)
+		cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
+
+		err := cmd.Run()
+		if err != nil {
+			log.Fatalf("cmd.Run() failed with %s\n", err)
+		}
+		log.Printf("%v", stdoutBuf)
+		log.Printf("%v", stderrBuf)
+
+	} else {
+		log.Printf("Dry run")
+		fmt.Println(command)
 	}
-
 	return stdoutBuf.String(), stderrBuf.String()
 }
 

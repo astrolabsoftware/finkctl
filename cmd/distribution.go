@@ -28,7 +28,9 @@ var distributionCmd = &cobra.Command{
 	Use:     DISTRIBUTION,
 	Aliases: []string{"d", "dis"},
 	Short:   "Launch Distribution service on Spark over Kubernetes",
-	Long:    `TODO`,
+	Long:    `Start fink-broker distribution service on Kubernetes`,
+	Example: `  # Start fink-broker distribution service using image <image>
+  finkctl spark --image=<image> distribution`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("distribution called")
 

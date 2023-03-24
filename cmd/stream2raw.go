@@ -4,7 +4,6 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/spf13/cobra"
@@ -34,9 +33,6 @@ Examples:
   # Lauch stream2raw using a custom image
   finkctl spark stream2raw --image=gitlab-registry.in2p3.fr/astrolabsoftware/fink/fink-broker:2076184`,
 	Run: func(cmd *cobra.Command, args []string) {
-
-		fmt.Println("stream2raw called")
-
 		sparkCmd := generateSparkCmd(STREAM2RAW)
 
 		cmdTpl := sparkCmd + `-servers "{{ .KafkaSocket }}" \
@@ -46,12 +42,8 @@ Examples:
 		c := getStream2RawConfig()
 		sparkCmd = format(cmdTpl, &c)
 
-		out, errout := ExecCmd(sparkCmd)
-		outmsg := OutMsg{
-			cmd:    sparkCmd,
-			out:    out,
-			errout: errout}
-		log.Printf("message: %v\n", outmsg)
+		ExecCmd(sparkCmd)
+
 	},
 }
 

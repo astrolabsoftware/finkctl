@@ -4,7 +4,6 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/spf13/cobra"
@@ -24,20 +23,13 @@ var raw2scienceCmd = &cobra.Command{
 	Short:   "Launch Raw2science service on Spark over Kubernetes",
 	Long:    `TODO`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("raw2science called")
 
 		sparkCmd := generateSparkCmd(RAW2SCIENCE)
 
 		cmdTpl := sparkCmd + `-night "{{ .Night }}"`
 		c := getRaw2ScienceConfig()
 		sparkCmd = format(cmdTpl, &c)
-
-		out, errout := ExecCmd(sparkCmd)
-		outmsg := OutMsg{
-			cmd:    sparkCmd,
-			out:    out,
-			errout: errout}
-		log.Printf("message: %v\n", outmsg)
+		ExecCmd(sparkCmd)
 	},
 }
 
