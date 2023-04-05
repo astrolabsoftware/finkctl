@@ -43,12 +43,7 @@ var distributionCmd = &cobra.Command{
 		c := getDistributionConfig()
 		sparkCmd = format(cmdTpl, &c)
 
-		out, errout := ExecCmd(sparkCmd)
-		outmsg := OutMsg{
-			cmd:    sparkCmd,
-			out:    out,
-			errout: errout}
-		log.Printf("message: %v\n", outmsg)
+		ExecCmd(sparkCmd)
 	},
 }
 
