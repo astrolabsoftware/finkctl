@@ -72,7 +72,7 @@ func initLogger() {
 
 	rawJSON := []byte(`{
 		"level": "debug",
-		"encoding": "json",
+		"encoding": "console",
 		"outputPaths": ["stdout", "/tmp/logs"],
 		"errorOutputPaths": ["stderr"],
 		"encoderConfig": {
@@ -114,18 +114,27 @@ func initConfig() {
 		viper.AddConfigPath(cwd)
 		viper.AddConfigPath(home)
 		viper.SetConfigType("yaml")
-		viper.SetConfigFile(".finkctl")
+		viper.SetConfigName(".finkctl")
+
 	}
-	viper.AutomaticEnv() // read in environment variables that match
 
 	// if viper.ConfigFileUsed() == "" {
 	// 	log.Fatal("No configuration file found")
 	// }
 
+	logConfiguration()
+
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		logger.Debugf("Using config file: %s", viper.ConfigFileUsed())
+		logger.Debugf("Use config file: %s", viper.ConfigFileUsed())
 	} else {
-		logger.Fatalf("Error while reading configuration file: ", err, viper.ConfigFileUsed())
+		logger.Fatalf("Fail reading configuration file: ", err, viper.ConfigFileUsed())
+	}
+
+	viper.SetConfigName(".finkctl.secret")
+	if err := viper.MergeInConfig(); err == nil {
+		logger.Debugf("Use secret file: %s", viper.ConfigFileUsed())
+	} else {
+		logger.Warnf("Fail reading secret file: ", err, viper.ConfigFileUsed())
 	}
 }

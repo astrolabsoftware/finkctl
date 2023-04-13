@@ -8,27 +8,25 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"gopkg.in/yaml.v2"
 )
 
 var minimal bool
+
+type storageClass int
+
+const (
+	s3 storageClass = iota
+	hdfs
+)
 
 // sparkCmd represents the spark command
 var sparkCmd = &cobra.Command{
 	Use:     "spark",
 	Aliases: []string{"spk"},
 	Short:   "Display Fink-broker parameters, for running it on Spark over Kubernetes",
-	Long: `Display all spark-submit parameters for running fink-broker on Spark over Kubernetes
-
-TODO`,
+	Long:    `Display all spark-submit parameters for running fink-broker on Spark over Kubernetes`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Display current finkctl configuration")
-		c := viper.AllSettings()
-		bs, err := yaml.Marshal(c)
-		if err != nil {
-			logger.Fatalf("unable to marshal config to YAML: %v", err)
-		}
-		fmt.Printf("%s", bs)
+		logConfiguration()
 	},
 }
 
@@ -41,6 +39,7 @@ type SparkConfig struct {
 	Packages          string
 	FinkTriggerUpdate string `mapstructure:"fink_trigger_update"`
 	LogLevel          string `mapstructure:"log_level"`
+	StorageClass      storageClass
 }
 
 func init() {
@@ -73,7 +72,9 @@ func getSparkConfig(task string) SparkConfig {
 	apiServerUrl := config.Host
 	c.ApiServerUrl = apiServerUrl
 
-	c.Image = viper.GetString("spark.image")
+	if c.OnlineDataPrefix == "" {
+		c.StorageClass = s3
+	}
 
 	return c
 }
@@ -103,16 +104,24 @@ org.apache.hadoop:hadoop-aws:3.2.3`
     --conf spark.kubernetes.authenticate.driver.serviceAccountName=spark \
     --conf spark.kubernetes.container.image="{{ .Image }}" \
     --conf spark.driver.extraJavaOptions="-Divy.cache.dir=/tmp -Divy.home=/tmp" \
-    --conf spark.hadoop.fs.s3a.endpoint=http://minio.minio-dev:9000 \
-    --conf spark.hadoop.fs.s3a.access.key="minioadmin" \
-    --conf spark.hadoop.fs.s3a.secret.key="minioadmin" \
+    `
+
+	if sc.StorageClass == s3 {
+		s3c := getS3Config()
+		sc.OnlineDataPrefix = fmt.Sprintf("s3a://%s", s3c.BucketName)
+		s3OptTpl := `--conf spark.hadoop.fs.s3a.endpoint={{ .Endpoint }} \
+    --conf spark.hadoop.fs.s3a.access.key="{{ .AccessKeyID }}" \
+    --conf spark.hadoop.fs.s3a.secret.key="{{ .SecretAccessKey }}" \
     --conf spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version=2 \
-    --conf spark.hadoop.fs.s3a.connection.ssl.enabled=false \
+    --conf spark.hadoop.fs.s3a.connection.ssl.enabled={{ .UseSSL }} \
     --conf spark.hadoop.fs.s3a.fast.upload=true \
     --conf spark.hadoop.fs.s3a.path.style.access=true \
     --conf spark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider \
     --conf spark.hadoop.fs.s3a.impl="org.apache.hadoop.fs.s3a.S3AFileSystem" \
     `
+		cmdTpl += format(s3OptTpl, &s3c)
+	}
+
 	if minimal {
 		cmdTpl += `--conf spark.kubernetes.driver.request.cores=0 \
     --conf spark.kubernetes.executor.request.cores=0 \

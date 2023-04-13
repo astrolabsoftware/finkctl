@@ -68,5 +68,6 @@ func getStream2RawConfig() Stream2RawConfig {
 	if err := viper.UnmarshalKey(STREAM2RAW, &c); err != nil {
 		log.Fatalf("Error while getting %s configuration: %v", STREAM2RAW, err)
 	}
+
 	return c
 }
