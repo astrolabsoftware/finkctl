@@ -4,8 +4,6 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"log"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -23,6 +21,9 @@ var raw2scienceCmd = &cobra.Command{
 	Short:   "Launch Raw2science service on Spark over Kubernetes",
 	Long:    `TODO`,
 	Run: func(cmd *cobra.Command, args []string) {
+		startMsg := "Launch raw2science service"
+		cmd.Printf(startMsg)
+		logger.Info(startMsg)
 
 		sparkCmd := generateSparkCmd(RAW2SCIENCE)
 
@@ -50,7 +51,7 @@ func init() {
 func getRaw2ScienceConfig() Raw2ScienceConfig {
 	var c Raw2ScienceConfig
 	if err := viper.UnmarshalKey(RAW2SCIENCE, &c); err != nil {
-		log.Fatalf("Error while getting %s configuration: %v", RAW2SCIENCE, err)
+		logger.Fatalf("Error while getting %s configuration: %v", RAW2SCIENCE, err)
 	}
 	return c
 }

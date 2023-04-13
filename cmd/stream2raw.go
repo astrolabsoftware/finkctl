@@ -24,15 +24,17 @@ var stream2rawCmd = &cobra.Command{
 	Use:     STREAM2RAW,
 	Aliases: []string{"s2r"},
 	Short:   "Launch Stream2raw service on Spark over Kubernetes",
-	Long: `Launch Stream2raw service on Spark over Kubernetes. Stream2raw retrieves data from a Kafka stream and writes it to a
-shared file system for further processing and analysis.
-
-Examples:
-  # Lauch stream2raw service on Spark, over Kubernetes
+	Long: `Launch Stream2raw service on Spark over Kubernetes. Stream2raw retrieves data from a Kafka stream
+and writes it to a shared file system for further processing and analysis.`,
+	Example: `  # Lauch stream2raw service on Spark, over Kubernetes
   finkctl spark stream2raw
   # Lauch stream2raw using a custom image
   finkctl spark stream2raw --image=gitlab-registry.in2p3.fr/astrolabsoftware/fink/fink-broker:2076184`,
 	Run: func(cmd *cobra.Command, args []string) {
+
+		startMsg := "Launch stream2raw service"
+		cmd.Printf(startMsg)
+		logger.Info(startMsg)
 		sparkCmd := generateSparkCmd(STREAM2RAW)
 
 		cmdTpl := sparkCmd + `-servers "{{ .KafkaSocket }}" \

@@ -6,9 +6,6 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
-	"log"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -32,7 +29,9 @@ var distributionCmd = &cobra.Command{
 	Example: `  # Start fink-broker distribution service using image <image>
   finkctl spark --image=<image> distribution`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("distribution called")
+		startMsg := "Launch distribution service"
+		cmd.Printf(startMsg)
+		logger.Info(startMsg)
 
 		sparkCmd := generateSparkCmd(DISTRIBUTION)
 
@@ -65,7 +64,7 @@ func getDistributionConfig() DistributionConfig {
 	var c DistributionConfig
 
 	if err := viper.UnmarshalKey(DISTRIBUTION, &c); err != nil {
-		log.Fatalf("Error while getting %s configuration: %v", DISTRIBUTION, err)
+		logger.Fatalf("Error while getting %s configuration: %v", DISTRIBUTION, err)
 	}
 	if c.DistributionServers == "" {
 		c.DistributionServers = viper.GetString("stream2raw.kafka_socket")

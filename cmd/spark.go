@@ -5,7 +5,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -27,7 +26,7 @@ TODO`,
 		c := viper.AllSettings()
 		bs, err := yaml.Marshal(c)
 		if err != nil {
-			log.Fatalf("unable to marshal config to YAML: %v", err)
+			logger.Fatalf("unable to marshal config to YAML: %v", err)
 		}
 		fmt.Printf("%s", bs)
 	},
@@ -58,9 +57,10 @@ func init() {
 }
 
 func getSparkConfig(task string) SparkConfig {
+
 	var c SparkConfig
 	if err := viper.UnmarshalKey("spark", &c); err != nil {
-		log.Fatalf("Error while getting spark configuration: %v", err)
+		logger.Fatalf("Error while getting spark configuration: %v", err)
 	}
 
 	if task == DISTRIBUTION {

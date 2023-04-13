@@ -17,16 +17,21 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package cmd
 
 import (
-	"fmt"
-	"log"
+	"encoding/json"
 	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 )
 
 var cfgFile string
 var dryRun bool
+
+var (
+	logger   *zap.SugaredLogger
+	logLevel int
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -45,10 +50,11 @@ func Execute() {
 	if err != nil {
 		os.Exit(1)
 	}
+
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
+	cobra.OnInitialize(initLogger, initConfig)
 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
@@ -56,6 +62,37 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $CWD/.finkctl then $HOME/.finkctl)")
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Only print the command")
+
+	rootCmd.PersistentFlags().IntVarP(&logLevel, "log-level", "v", 0, "Set-up log level")
+
+}
+
+// setUpLogs set the log output ans the log level
+func initLogger() {
+
+	rawJSON := []byte(`{
+		"level": "debug",
+		"encoding": "json",
+		"outputPaths": ["stdout", "/tmp/logs"],
+		"errorOutputPaths": ["stderr"],
+		"encoderConfig": {
+		  "messageKey": "message",
+		  "levelKey": "level",
+		  "levelEncoder": "lowercase"
+		}
+	  }`)
+
+	var cfg zap.Config
+	if err := json.Unmarshal(rawJSON, &cfg); err != nil {
+		panic(err)
+	}
+	_logger, err := cfg.Build()
+	if err != nil {
+		panic(err)
+	}
+	defer _logger.Sync()
+	logger = _logger.Sugar()
+
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -87,8 +124,8 @@ func initConfig() {
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+		logger.Debugf("Using config file: %s", viper.ConfigFileUsed())
 	} else {
-		log.Fatal("Error while reading configuration file: ", err, viper.ConfigFileUsed())
+		logger.Fatalf("Error while reading configuration file: ", err, viper.ConfigFileUsed())
 	}
 }

@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -24,10 +23,10 @@ func setMinioClient() *minio.Client {
 		Secure: useSSL,
 	})
 	if err != nil {
-		log.Fatalln(err)
+		logger.Fatal(err)
 	}
 
-	log.Printf("%#v\n", minioClient)
+	logger.Debugf("%#v\n", minioClient)
 	return minioClient
 
 }
@@ -35,10 +34,16 @@ func setMinioClient() *minio.Client {
 func listBucket(minioClient *minio.Client) {
 	buckets, err := minioClient.ListBuckets(context.Background())
 	if err != nil {
-		fmt.Println(err)
-		return
+		logger.Fatal(err)
 	}
 	for _, bucket := range buckets {
 		fmt.Println(bucket)
+	}
+}
+
+func makeBucket(minioClient *minio.Client) {
+	err := minioClient.MakeBucket(context.Background(), "fink-broker-online", minio.MakeBucketOptions{Region: "us-east-1", ObjectLocking: true})
+	if err != nil {
+		logger.Fatal(err)
 	}
 }
