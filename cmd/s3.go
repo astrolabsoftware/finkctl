@@ -1,6 +1,5 @@
 /*
 Copyright © 2023 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
@@ -8,18 +7,29 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
+
+const S3 string = "s3"
+
+// endpoint := "localhost:9000"
+// accessKeyID := "minioadmin"
+// secretAccessKey := "minioadmin"
+// useSSL := false
+
+type S3Config struct {
+	Endpoint        string `mapstructure:"endpoint"`
+	AccessKeyID     string `mapstructure:"access_key_id"`
+	SecretAccessKey string `mapstructure:"distribution_schema"`
+	UseSSL          string `mapstructure:"night"`
+	BucketName      string `mapstructure:"night"`
+}
 
 // s3Cmd represents the s3 command
 var s3Cmd = &cobra.Command{
 	Use:   "s3",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Display S3 storage parameters",
+	Long:  `Display all S3 storage parameters for running fink-broker on Spark over Kubernetes`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("s3 called")
 	},
@@ -37,4 +47,14 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// s3Cmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+}
+
+func getS3Config() S3Config {
+	var c S3Config
+
+	if err := viper.UnmarshalKey(S3, &c); err != nil {
+		logger.Fatalf("Error while getting %s configuration: %v", S3, err)
+	}
+
+	return c
 }

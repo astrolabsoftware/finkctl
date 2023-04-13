@@ -1,8 +1,13 @@
+s3:
+  endpoint: "localhost:9000"
+  use_ssl: false
+  bucket: fink-broker-online
 spark:
   fink_trigger_update: "2"
   # Can be set using IMAGE environment variable
   image: gitlab-registry.in2p3.fr/astrolabsoftware/fink/fink-broker:2.7.1-29-g2076184
-  online_data_prefix: s3a://fink-broker-online
+  # Default to s3a://<s3.bucket>
+  # online_data_prefix: s3a://fink-broker-online
   producer: sims
   log_level: INFO
 stream2raw:
@@ -17,6 +22,6 @@ distribution:
   # distribution_servers: "kafka_server1:kafka_server2"
   distribution_schema: "/home/fink/fink-alert-schemas/ztf/distribution_schema_0p2.avsc"
   substream_prefix: "fink_"
-  # Default to stream2raw.night
+  # Default to <stream2raw.night>
   # night: "20190903"
 

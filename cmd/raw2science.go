@@ -19,7 +19,12 @@ var raw2scienceCmd = &cobra.Command{
 	Use:     RAW2SCIENCE,
 	Aliases: []string{"r"},
 	Short:   "Launch Raw2science service on Spark over Kubernetes",
-	Long:    `TODO`,
+	Long: `Launch Raw2science service on Spark over Kubernetes. Raw2science processes and analyzes data from a
+shared file system and send it to Kafka streams.`,
+	Example: `  # Lauch raw2science service on Spark, over Kubernetes
+	  finkctl spark raw2science
+	  # Lauch raw2science using a custom image
+	  finkctl spark raw2science --image=gitlab-registry.in2p3.fr/astrolabsoftware/fink/fink-broker:2076184`,
 	Run: func(cmd *cobra.Command, args []string) {
 		startMsg := "Launch raw2science service"
 		cmd.Printf(startMsg)
@@ -53,5 +58,6 @@ func getRaw2ScienceConfig() Raw2ScienceConfig {
 	if err := viper.UnmarshalKey(RAW2SCIENCE, &c); err != nil {
 		logger.Fatalf("Error while getting %s configuration: %v", RAW2SCIENCE, err)
 	}
+
 	return c
 }

@@ -18,9 +18,7 @@ var sparkCmd = &cobra.Command{
 	Use:     "spark",
 	Aliases: []string{"spk"},
 	Short:   "Display Fink-broker parameters, for running it on Spark over Kubernetes",
-	Long: `Display all spark-submit parameters for running fink-broker on Spark over Kubernetes
-
-TODO`,
+	Long:    `Display all spark-submit parameters for running fink-broker on Spark over Kubernetes`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Display current finkctl configuration")
 		c := viper.AllSettings()
@@ -74,6 +72,10 @@ func getSparkConfig(task string) SparkConfig {
 	c.ApiServerUrl = apiServerUrl
 
 	c.Image = viper.GetString("spark.image")
+
+	if c.OnlineDataPrefix == "" {
+		c.OnlineDataPrefix = fmt.Sprintf("s3a://%s", viper.GetString("s3.bucket"))
+	}
 
 	return c
 }

@@ -16,10 +16,11 @@ func setMinioClient() *minio.Client {
 	accessKeyID := "minioadmin"
 	secretAccessKey := "minioadmin"
 	useSSL := false
+	token := ""
 
 	// Initialize minio client object.
 	minioClient, err := minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
+		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, token),
 		Secure: useSSL,
 	})
 	if err != nil {
@@ -42,7 +43,8 @@ func listBucket(minioClient *minio.Client) {
 }
 
 func makeBucket(minioClient *minio.Client) {
-	err := minioClient.MakeBucket(context.Background(), "fink-broker-online", minio.MakeBucketOptions{Region: "us-east-1", ObjectLocking: true})
+	err := minioClient.MakeBucket(context.Background(), "fink-broker-online",
+		minio.MakeBucketOptions{Region: "us-east-1", ObjectLocking: true})
 	if err != nil {
 		logger.Fatal(err)
 	}
