@@ -72,7 +72,7 @@ func initLogger() {
 
 	rawJSON := []byte(`{
 		"level": "debug",
-		"encoding": "json",
+		"encoding": "console",
 		"outputPaths": ["stdout", "/tmp/logs"],
 		"errorOutputPaths": ["stderr"],
 		"encoderConfig": {

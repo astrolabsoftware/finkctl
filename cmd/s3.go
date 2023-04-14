@@ -19,10 +19,10 @@ const S3 string = "s3"
 
 type S3Config struct {
 	Endpoint        string `mapstructure:"endpoint"`
-	AccessKeyID     string `mapstructure:"access_key_id"`
-	SecretAccessKey string `mapstructure:"distribution_schema"`
-	UseSSL          string `mapstructure:"night"`
-	BucketName      string `mapstructure:"night"`
+	AccessKeyID     string `mapstructure:"id"`
+	SecretAccessKey string `mapstructure:"secret"`
+	UseSSL          string `mapstructure:"use_ssl"`
+	BucketName      string `mapstructure:"bucket"`
 }
 
 // s3Cmd represents the s3 command
