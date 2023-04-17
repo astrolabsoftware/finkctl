@@ -117,11 +117,12 @@ func initConfig() {
 		viper.SetConfigName(".finkctl")
 
 	}
-	viper.AutomaticEnv() // read in environment variables that match
 
 	// if viper.ConfigFileUsed() == "" {
 	// 	log.Fatal("No configuration file found")
 	// }
+
+	logConfiguration()
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {

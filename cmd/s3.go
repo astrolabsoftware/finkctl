@@ -4,8 +4,6 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -31,7 +29,7 @@ var s3Cmd = &cobra.Command{
 	Short: "Display S3 storage parameters",
 	Long:  `Display all S3 storage parameters for running fink-broker on Spark over Kubernetes`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("s3 called")
+		logConfiguration()
 	},
 }
 
@@ -47,6 +45,10 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// s3Cmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
+	s3Cmd.PersistentFlags().String("endpoint", "", "S3 service URL")
+	viper.BindPFlag("s3.endpoint", s3Cmd.PersistentFlags().Lookup("endpoint"))
+
 }
 
 func getS3Config() S3Config {

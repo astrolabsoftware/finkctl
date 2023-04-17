@@ -8,7 +8,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"gopkg.in/yaml.v2"
 )
 
 var minimal bool
@@ -27,13 +26,7 @@ var sparkCmd = &cobra.Command{
 	Short:   "Display Fink-broker parameters, for running it on Spark over Kubernetes",
 	Long:    `Display all spark-submit parameters for running fink-broker on Spark over Kubernetes`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Display current finkctl configuration")
-		c := viper.AllSettings()
-		bs, err := yaml.Marshal(c)
-		if err != nil {
-			logger.Fatalf("unable to marshal config to YAML: %v", err)
-		}
-		fmt.Printf("%s", bs)
+		logConfiguration()
 	},
 }
 
@@ -78,8 +71,6 @@ func getSparkConfig(task string) SparkConfig {
 	_, config := setKubeClient()
 	apiServerUrl := config.Host
 	c.ApiServerUrl = apiServerUrl
-
-	c.Image = viper.GetString("spark.image")
 
 	if c.OnlineDataPrefix == "" {
 		c.StorageClass = s3
