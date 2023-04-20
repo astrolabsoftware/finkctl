@@ -135,6 +135,6 @@ func initConfig() {
 	if err := viper.MergeInConfig(); err == nil {
 		logger.Debugf("Use secret file: %s", viper.ConfigFileUsed())
 	} else {
-		logger.Warnf("Fail reading secret file: ", err, viper.ConfigFileUsed())
+		logger.Fatalf("Fail reading secret file: ", err, viper.ConfigFileUsed())
 	}
 }
