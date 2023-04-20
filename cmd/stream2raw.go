@@ -33,6 +33,7 @@ and writes it to a shared file system for further processing and analysis.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		startMsg := "Launch stream2raw service"
+		logConfiguration()
 		cmd.Printf(startMsg)
 		logger.Info(startMsg)
 		sparkCmd := generateSparkCmd(STREAM2RAW)

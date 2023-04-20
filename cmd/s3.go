@@ -19,7 +19,7 @@ type S3Config struct {
 	Endpoint        string `mapstructure:"endpoint"`
 	AccessKeyID     string `mapstructure:"id"`
 	SecretAccessKey string `mapstructure:"secret"`
-	UseSSL          string `mapstructure:"use_ssl"`
+	UseSSL          bool   `mapstructure:"use_ssl"`
 	BucketName      string `mapstructure:"bucket"`
 }
 
@@ -57,6 +57,9 @@ func getS3Config() S3Config {
 	if err := viper.UnmarshalKey(S3, &c); err != nil {
 		logger.Fatalf("Error while getting %s configuration: %v", S3, err)
 	}
+
+	// FIXME UnmarshalKey() does not seems to support correctly nested key management
+	c.Endpoint = viper.GetString("s3.endpoint")
 
 	return c
 }

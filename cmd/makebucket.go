@@ -22,10 +22,11 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Create S3 bucket for Fink broker")
-		mc := setMinioClient()
+		c := getS3Config()
+		logger.Debugf("XXXXXXXXXXXXXXx %s", c)
+		mc := setMinioClient(c)
 		listBucket(mc)
-		makeBucket(mc)
-
+		makeBucket(mc, c.BucketName)
 	},
 }
 
