@@ -19,9 +19,11 @@ const (
 	hdfs
 )
 
+const SPARK string = "spark"
+
 // sparkCmd represents the spark command
 var sparkCmd = &cobra.Command{
-	Use:     "spark",
+	Use:     SPARK,
 	Aliases: []string{"spk"},
 	Short:   "Display Fink-broker parameters, for running it on Spark over Kubernetes",
 	Long:    `Display all spark-submit parameters for running fink-broker on Spark over Kubernetes`,
@@ -58,7 +60,8 @@ func init() {
 func getSparkConfig(task string) SparkConfig {
 
 	var c SparkConfig
-	if err := viper.UnmarshalKey("spark", &c); err != nil {
+
+	if err := viper.UnmarshalKey(SPARK, &c); err != nil {
 		logger.Fatalf("Error while getting spark configuration: %v", err)
 	}
 
@@ -75,6 +78,9 @@ func getSparkConfig(task string) SparkConfig {
 	if c.OnlineDataPrefix == "" {
 		c.StorageClass = s3
 	}
+
+	// FIXME UnmarshalKey() does not seems to support correctly nested key management
+	c.Image = viper.GetString("spark.image")
 
 	return c
 }
