@@ -23,7 +23,7 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Create S3 bucket for Fink broker")
 		c := getS3Config()
-		logger.Debugf("XXXXXXXXXXXXXXx %s", c)
+		logger.Debugf("S3 endpoint: %s, bucket name: %s", c.Endpoint, c.BucketName)
 		mc := setMinioClient(c)
 		listBucket(mc)
 		if !bucketExists(mc, c.BucketName) {

@@ -21,8 +21,6 @@ func setMinioClient(c S3Config) *minio.Client {
 	if err != nil {
 		logger.Fatalf("Unable to create minio client: %s", err)
 	}
-
-	logger.Debugf("%#v\n", minioClient)
 	return minioClient
 
 }
