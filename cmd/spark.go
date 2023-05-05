@@ -11,6 +11,7 @@ import (
 )
 
 var minimal bool
+var noscience bool
 
 type storageClass int
 
@@ -54,6 +55,7 @@ func init() {
 	sparkCmd.PersistentFlags().BoolVarP(&minimal, "minimal", "m", false, "Set minimal cpu/memory requests for spark pods")
 
 	sparkCmd.PersistentFlags().String("image", "", "fink-broker image name")
+	sparkCmd.PersistentFlags().BoolVarP(&noscience, "noscience", "n", false, "Disable execution of science modules")
 	viper.BindPFlag("spark.image", sparkCmd.PersistentFlags().Lookup("image"))
 }
 
@@ -141,6 +143,10 @@ org.apache.hadoop:hadoop-aws:3.2.3`
     -producer "{{ .Producer }}" \
     -tinterval "{{ .FinkTriggerUpdate }}" \
     `
+	if noscience {
+		cmdTpl += `-noscience \
+    `
+	}
 	cmd := format(cmdTpl, &sc)
 	return cmd
 }
