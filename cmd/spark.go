@@ -47,6 +47,7 @@ type SparkConfig struct {
 
 func init() {
 	rootCmd.AddCommand(sparkCmd)
+	viper.AutomaticEnv()
 
 	// Here you will define your flags and configuration settings.
 
@@ -55,8 +56,9 @@ func init() {
 	sparkCmd.PersistentFlags().BoolVarP(&minimal, "minimal", "m", false, "Set minimal cpu/memory requests for spark pods")
 
 	sparkCmd.PersistentFlags().String("image", "", "fink-broker image name")
-	sparkCmd.PersistentFlags().BoolVarP(&noscience, "noscience", "n", false, "Disable execution of science modules")
+	sparkCmd.PersistentFlags().BoolP("noscience", "n", false, "Disable execution of science modules, can be overridden by exporting environment variable NOSCIENCE=true")
 	viper.BindPFlag("spark.image", sparkCmd.PersistentFlags().Lookup("image"))
+	viper.BindPFlag("noscience", sparkCmd.PersistentFlags().Lookup("noscience"))
 }
 
 func getSparkConfig(task string) SparkConfig {
@@ -143,7 +145,7 @@ org.apache.hadoop:hadoop-aws:3.2.3`
     -producer "{{ .Producer }}" \
     -tinterval "{{ .FinkTriggerUpdate }}" \
     `
-	if noscience {
+	if viper.GetBool("noscience") {
 		cmdTpl += `-noscience \
     `
 	}
