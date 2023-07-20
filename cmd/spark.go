@@ -146,7 +146,7 @@ org.apache.hadoop:hadoop-aws:3.2.3`
     -tinterval "{{ .FinkTriggerUpdate }}" \
     `
 	if viper.GetBool("noscience") {
-		cmdTpl += `-noscience \
+		cmdTpl += `--noscience \
     `
 	}
 	cmd := format(cmdTpl, &sc)

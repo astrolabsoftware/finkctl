@@ -64,9 +64,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $CWD/.finkctl then $HOME/.finkctl)")
 	rootCmd.PersistentFlags().StringVar(&secretCfgFile, "secret", "", "config file with secret (default is $CWD/.finkctl.secret then $HOME/.finkctl.secret)")
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Only print the command")
-
 	rootCmd.PersistentFlags().IntVarP(&logLevel, "log-level", "v", 0, "Set-up log level")
-
 }
 
 // setUpLogs set the log output ans the log level
