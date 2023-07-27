@@ -5,6 +5,9 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -41,6 +44,7 @@ type SparkConfig struct {
 	OnlineDataPrefix  string `mapstructure:"online_data_prefix"`
 	Packages          string
 	FinkTriggerUpdate string `mapstructure:"fink_trigger_update"`
+	LocalTmpDirectory string
 	LogLevel          string `mapstructure:"log_level"`
 	StorageClass      storageClass
 }
@@ -71,6 +75,12 @@ func getSparkConfig(task string) SparkConfig {
 
 	if task == DISTRIBUTION {
 		c.Binary = DISTRIBUTION_BIN
+		var err error
+		c.LocalTmpDirectory, err = ioutil.TempDir(os.TempDir(), "fink_local_files")
+		// Create a temporary file for kafka authentication
+		if err != nil {
+			log.Fatal(err)
+		}
 	} else {
 		c.Binary = fmt.Sprintf("%s.py", task)
 	}
@@ -89,13 +99,12 @@ func getSparkConfig(task string) SparkConfig {
 	return c
 }
 
-func generateSparkCmd(task string) string {
-
+func generateSparkCmd(task string) (string, SparkConfig) {
 	sc := getSparkConfig(task)
-	return applyTemplate(sc)
+	return applyTemplate(sc, task), sc
 }
 
-func applyTemplate(sc SparkConfig) string {
+func applyTemplate(sc SparkConfig, task string) string {
 
 	// WARNING package are not deployed in spark-executor
 	// see https://stackoverflow.com/a/67299668/2784039
@@ -130,6 +139,15 @@ org.apache.hadoop:hadoop-aws:3.2.3`
     --conf spark.hadoop.fs.s3a.impl="org.apache.hadoop.fs.s3a.S3AFileSystem" \
     `
 		cmdTpl += format(s3OptTpl, &s3c)
+	}
+
+	if task == DISTRIBUTION {
+		kafkaOptTpl := fmt.Sprintf(`--files {{ .LocalTmpDirectory }}/%[1]s \
+    --driver-java-options "-Djava.security.auth.login.config=%[1]s" \
+    --conf "spark.driver.extraJavaOptions=-Djava.security.auth.login.config=%[1]s" \
+    --conf "spark.executor.extraJavaOptions=-Djava.security.auth.login.config=%[1]s" \
+    `, DISTRIBUTION_KAFKA_AUTH_FILE)
+		cmdTpl += kafkaOptTpl
 	}
 
 	if minimal {

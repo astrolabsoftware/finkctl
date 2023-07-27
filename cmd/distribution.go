@@ -6,18 +6,29 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"log"
+	"os"
+
+	"github.com/astrolabsoftware/finkctl/resources"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 const DISTRIBUTION string = "distribution"
 const DISTRIBUTION_BIN string = "distribute.py"
+const DISTRIBUTION_KAFKA_AUTH_FILE string = "kafka_producer_jaas.conf"
+
+type KafkaCreds struct {
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
+}
 
 type DistributionConfig struct {
-	DistributionServers string `mapstructure:"distribution_servers"`
-	SubstreamPrefix     string `mapstructure:"substream_prefix"`
-	DistributionSchema  string `mapstructure:"distribution_schema"`
-	Night               string `mapstructure:"night"`
+	DistributionServers string     `mapstructure:"distribution_servers"`
+	SubstreamPrefix     string     `mapstructure:"substream_prefix"`
+	DistributionSchema  string     `mapstructure:"distribution_schema"`
+	Night               string     `mapstructure:"night"`
+	KafkaCreds          KafkaCreds `mapstructure:"kafka"`
 }
 
 // distributionCmd represents the distribution command
@@ -33,17 +44,33 @@ var distributionCmd = &cobra.Command{
 		cmd.Printf(startMsg)
 		logger.Info(startMsg)
 
-		sparkCmd := generateSparkCmd(DISTRIBUTION)
+		sparkCmd, sc := generateSparkCmd(DISTRIBUTION)
 
 		cmdTpl := sparkCmd + `-distribution_servers "{{ .DistributionServers }}" \
     -distribution_schema "{{ .DistributionSchema }}" \
     -substream_prefix "{{ .SubstreamPrefix }}" \
     -night "{{ .Night }}"`
+
 		c := getDistributionConfig()
+
+		createKafkaJaasConfFile(sc.LocalTmpDirectory, &c)
+
 		sparkCmd = format(cmdTpl, &c)
 
 		ExecCmd(sparkCmd)
 	},
+}
+
+func createKafkaJaasConfFile(tmp string, c *DistributionConfig) {
+	kafkaJaasConf := format(resources.KafkaJaasConf, &c)
+
+	kafkaJaasConfFile, err := os.Create(tmp + "/" + DISTRIBUTION_KAFKA_AUTH_FILE)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Write kafkaJaasConf to file
+	kafkaJaasConfFile.WriteString(kafkaJaasConf)
+	kafkaJaasConfFile.Close()
 }
 
 func init() {

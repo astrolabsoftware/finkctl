@@ -36,7 +36,7 @@ and writes it to a shared file system for further processing and analysis.`,
 		logConfiguration()
 		cmd.Printf(startMsg)
 		logger.Info(startMsg)
-		sparkCmd := generateSparkCmd(STREAM2RAW)
+		sparkCmd, _ := generateSparkCmd(STREAM2RAW)
 
 		cmdTpl := sparkCmd + `-servers "{{ .KafkaSocket }}" \
     -schema "{{ .FinkAlertSchema }}" \

@@ -19,7 +19,7 @@ func TestGetSparkCmd(t *testing.T) {
 	}
 
 	sc.Binary = "changeme.py"
-	sparkCmd := applyTemplate(sc)
+	sparkCmd := applyTemplate(sc, DISTRIBUTION)
 
 	log.Printf("CMD %v", sparkCmd)
 }

@@ -28,7 +28,7 @@ shared file system and send it to Kafka streams.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		logger.Info("Launch raw2science service")
 
-		sparkCmd := generateSparkCmd(RAW2SCIENCE)
+		sparkCmd, _ := generateSparkCmd(RAW2SCIENCE)
 
 		cmdTpl := sparkCmd + `-night "{{ .Night }}"`
 		c := getRaw2ScienceConfig()
