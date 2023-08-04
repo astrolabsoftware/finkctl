@@ -5,10 +5,10 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 
+	"github.com/astrolabsoftware/finkctl/resources"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -23,7 +23,10 @@ const (
 	hdfs
 )
 
-const SPARK string = "spark"
+const (
+	SPARK           string = "spark"
+	tmp_path_prefix string = "fink-broker-"
+)
 
 // sparkCmd represents the spark command
 var sparkCmd = &cobra.Command{
@@ -60,7 +63,7 @@ func init() {
 	sparkCmd.PersistentFlags().BoolVarP(&minimal, "minimal", "m", false, "Set minimal cpu/memory requests for spark pods")
 
 	sparkCmd.PersistentFlags().String("image", "", "fink-broker image name")
-	sparkCmd.PersistentFlags().BoolP("noscience", "n", false, "Disable execution of science modules, can be overridden by exporting environment variable NOSCIENCE=true")
+	sparkCmd.PersistentFlags().BoolVarP(&noscience, "n", false, "Disable execution of science modules, can be overridden by exporting environment variable NOSCIENCE=true")
 	viper.BindPFlag("spark.image", sparkCmd.PersistentFlags().Lookup("image"))
 	viper.BindPFlag("noscience", sparkCmd.PersistentFlags().Lookup("noscience"))
 }
@@ -76,7 +79,7 @@ func getSparkConfig(task string) SparkConfig {
 	if task == DISTRIBUTION {
 		c.Binary = DISTRIBUTION_BIN
 		var err error
-		c.LocalTmpDirectory, err = ioutil.TempDir(os.TempDir(), "fink_local_files")
+		c.LocalTmpDirectory, err = os.MkdirTemp(os.TempDir(), tmp_path_prefix)
 		// Create a temporary file for kafka authentication
 		if err != nil {
 			log.Fatal(err)
@@ -142,11 +145,9 @@ org.apache.hadoop:hadoop-aws:3.2.3`
 	}
 
 	if task == DISTRIBUTION {
-		kafkaOptTpl := fmt.Sprintf(`--files {{ .LocalTmpDirectory }}/%[1]s \
-    --driver-java-options "-Djava.security.auth.login.config=%[1]s" \
-    --conf "spark.driver.extraJavaOptions=-Djava.security.auth.login.config=%[1]s" \
-    --conf "spark.executor.extraJavaOptions=-Djava.security.auth.login.config=%[1]s" \
-    `, DISTRIBUTION_KAFKA_AUTH_FILE)
+		kafkaOptTpl := fmt.Sprintf(`--conf spark.kubernetes.executor.podTemplateFile={{ .LocalTmpDirectory }}/pod-template.yaml
+    --conf "spark.executor.extraJavaOptions=-Djava.security.auth.login.config=/tmp/%[1]s" \
+    `, resources.KafkaJaasConfFile)
 		cmdTpl += kafkaOptTpl
 	}
 
@@ -163,7 +164,7 @@ org.apache.hadoop:hadoop-aws:3.2.3`
     -producer "{{ .Producer }}" \
     -tinterval "{{ .FinkTriggerUpdate }}" \
     `
-	if viper.GetBool("noscience") {
+	if noscience {
 		cmdTpl += `--noscience \
     `
 	}

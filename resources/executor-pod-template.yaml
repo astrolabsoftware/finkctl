@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+    - volumeMounts:
+      - name: config-volume
+        mountPath: {{ .ConfigMapPathKafkaJaas }}
+  volumes:
+    - name: config-volume
+      configMap:
+        name: {{ .ConfigMapNameKafkaJaas }}

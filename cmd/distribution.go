@@ -16,7 +16,6 @@ import (
 
 const DISTRIBUTION string = "distribution"
 const DISTRIBUTION_BIN string = "distribute.py"
-const DISTRIBUTION_KAFKA_AUTH_FILE string = "kafka_producer_jaas.conf"
 
 type KafkaCreds struct {
 	Username string `mapstructure:"username"`
@@ -44,7 +43,7 @@ var distributionCmd = &cobra.Command{
 		cmd.Printf(startMsg)
 		logger.Info(startMsg)
 
-		sparkCmd, sc := generateSparkCmd(DISTRIBUTION)
+		sparkCmd, _ := generateSparkCmd(DISTRIBUTION)
 
 		cmdTpl := sparkCmd + `-distribution_servers "{{ .DistributionServers }}" \
     -distribution_schema "{{ .DistributionSchema }}" \
@@ -53,7 +52,7 @@ var distributionCmd = &cobra.Command{
 
 		c := getDistributionConfig()
 
-		createKafkaJaasConfFile(sc.LocalTmpDirectory, &c)
+		createKafkaJaasConfigMap(&c)
 
 		sparkCmd = format(cmdTpl, &c)
 
@@ -61,16 +60,16 @@ var distributionCmd = &cobra.Command{
 	},
 }
 
-func createKafkaJaasConfFile(tmp string, c *DistributionConfig) {
-	kafkaJaasConf := format(resources.KafkaJaasConf, &c)
+func createExecutorPodTemplate(tmp string) {
+	kafkaJaasConf := format(resources.ExecutorPodTemplate, &c)
 
-	kafkaJaasConfFile, err := os.Create(tmp + "/" + DISTRIBUTION_KAFKA_AUTH_FILE)
+	executorPodTemplateFile, err := os.Create(tmp + "/" + resources.ExecutorPodTemplateFile)
+	defer executorPodTemplateFile.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
 	// Write kafkaJaasConf to file
-	kafkaJaasConfFile.WriteString(kafkaJaasConf)
-	kafkaJaasConfFile.Close()
+	executorPodTemplateFile.WriteString(kafkaJaasConf)
 }
 
 func init() {
