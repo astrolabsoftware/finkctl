@@ -63,7 +63,7 @@ func init() {
 	sparkCmd.PersistentFlags().BoolVarP(&minimal, "minimal", "m", false, "Set minimal cpu/memory requests for spark pods")
 
 	sparkCmd.PersistentFlags().String("image", "", "fink-broker image name")
-	sparkCmd.PersistentFlags().BoolVarP(&noscience, "n", false, "Disable execution of science modules, can be overridden by exporting environment variable NOSCIENCE=true")
+	sparkCmd.PersistentFlags().BoolVarP(&noscience, "noscience", "n", false, "Disable execution of science modules, can be overridden by exporting environment variable NOSCIENCE=true")
 	viper.BindPFlag("spark.image", sparkCmd.PersistentFlags().Lookup("image"))
 	viper.BindPFlag("noscience", sparkCmd.PersistentFlags().Lookup("noscience"))
 }

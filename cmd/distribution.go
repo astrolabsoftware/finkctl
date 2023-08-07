@@ -43,12 +43,14 @@ var distributionCmd = &cobra.Command{
 		cmd.Printf(startMsg)
 		logger.Info(startMsg)
 
-		sparkCmd, _ := generateSparkCmd(DISTRIBUTION)
+		sparkCmd, sc := generateSparkCmd(DISTRIBUTION)
 
 		cmdTpl := sparkCmd + `-distribution_servers "{{ .DistributionServers }}" \
     -distribution_schema "{{ .DistributionSchema }}" \
     -substream_prefix "{{ .SubstreamPrefix }}" \
     -night "{{ .Night }}"`
+
+		createExecutorPodTemplate(sc.LocalTmpDirectory)
 
 		c := getDistributionConfig()
 
@@ -61,13 +63,15 @@ var distributionCmd = &cobra.Command{
 }
 
 func createExecutorPodTemplate(tmp string) {
+	c := getKubeVars()
 	kafkaJaasConf := format(resources.ExecutorPodTemplate, &c)
 
 	executorPodTemplateFile, err := os.Create(tmp + "/" + resources.ExecutorPodTemplateFile)
-	defer executorPodTemplateFile.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer executorPodTemplateFile.Close()
+
 	// Write kafkaJaasConf to file
 	executorPodTemplateFile.WriteString(kafkaJaasConf)
 }
