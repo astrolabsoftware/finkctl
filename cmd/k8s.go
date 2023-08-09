@@ -83,7 +83,7 @@ func createKafkaJaasConfigMap(c *DistributionConfig) {
 		Data: files,
 	}
 
-	_, err := clientSet.CoreV1().ConfigMaps("").Create(context.TODO(), &cm, metav1.CreateOptions{})
+	_, err := clientSet.CoreV1().ConfigMaps(getCurrentNamespace()).Create(context.TODO(), &cm, metav1.CreateOptions{})
 	if err != nil {
 		panic(err.Error())
 	}
