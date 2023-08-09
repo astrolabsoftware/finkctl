@@ -19,6 +19,7 @@ package cmd
 import (
 	"encoding/json"
 	"os"
+	"path"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -106,14 +107,14 @@ func initConfig() {
 	cobra.CheckErr(err1)
 
 	viper.AddConfigPath(cwd)
-	viper.AddConfigPath(home)
+	viper.AddConfigPath(path.Join(home, ".finkctl"))
 	viper.SetConfigType("yaml")
 
 	if cfgFile != "" {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {
-		viper.SetConfigName(".finkctl")
+		viper.SetConfigName("finkctl.yaml")
 	}
 
 	// If a config file is found, read it in.
@@ -127,7 +128,7 @@ func initConfig() {
 		// Use config file from the flag.
 		viper.SetConfigFile(secretCfgFile)
 	} else {
-		viper.SetConfigName(".finkctl.secret")
+		viper.SetConfigName("finkctl.secret.yaml")
 	}
 
 	if err := viper.MergeInConfig(); err == nil {
