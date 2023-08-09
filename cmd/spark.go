@@ -67,6 +67,7 @@ func init() {
 	sparkCmd.PersistentFlags().String("image", "", "fink-broker image name")
 	sparkCmd.PersistentFlags().BoolVarP(&noscience, "noscience", "n", false, "Disable execution of science modules, can be overridden by exporting environment variable NOSCIENCE=true")
 	viper.BindPFlag("spark.image", sparkCmd.PersistentFlags().Lookup("image"))
+	viper.BindPFlag("minimal", sparkCmd.PersistentFlags().Lookup("minimal"))
 	viper.BindPFlag("noscience", sparkCmd.PersistentFlags().Lookup("noscience"))
 }
 
