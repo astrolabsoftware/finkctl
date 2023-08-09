@@ -56,7 +56,6 @@ type SparkConfig struct {
 
 func init() {
 	rootCmd.AddCommand(sparkCmd)
-	viper.AutomaticEnv()
 
 	// Here you will define your flags and configuration settings.
 
@@ -69,6 +68,8 @@ func init() {
 	viper.BindPFlag("spark.image", sparkCmd.PersistentFlags().Lookup("image"))
 	viper.BindPFlag("minimal", sparkCmd.PersistentFlags().Lookup("minimal"))
 	viper.BindPFlag("noscience", sparkCmd.PersistentFlags().Lookup("noscience"))
+	viper.AutomaticEnv()
+
 }
 
 func getSparkConfig(task string) SparkConfig {
