@@ -7,8 +7,9 @@ import (
 
 	"github.com/astrolabsoftware/finkctl/resources"
 	"github.com/spf13/cobra"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/client-go/applyconfigurations/core/v1"
+	applymetav1 "k8s.io/client-go/applyconfigurations/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -72,18 +73,22 @@ func createKafkaJaasConfigMap(c *DistributionConfig) {
 
 	files[resources.KafkaJaasConfFile] = kafkaJaasConf
 
-	cm := corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ConfigMap",
-			APIVersion: "v1",
+	kind := "ConfigMap"
+	version := "v1"
+	name := configMapNameKafkaJaas
+
+	cm := v1.ConfigMapApplyConfiguration{
+		TypeMetaApplyConfiguration: applymetav1.TypeMetaApplyConfiguration{
+			Kind:       &kind,
+			APIVersion: &version,
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: configMapNameKafkaJaas,
+		ObjectMetaApplyConfiguration: &applymetav1.ObjectMetaApplyConfiguration{
+			Name: &name,
 		},
 		Data: files,
 	}
 
-	_, err := clientSet.CoreV1().ConfigMaps(getCurrentNamespace()).Create(context.TODO(), &cm, metav1.CreateOptions{})
+	_, err := clientSet.CoreV1().ConfigMaps(getCurrentNamespace()).Apply(context.TODO(), &cm, metav1.ApplyOptions{})
 	if err != nil {
 		panic(err.Error())
 	}
