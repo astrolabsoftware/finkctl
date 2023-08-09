@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 
 	"github.com/astrolabsoftware/finkctl/resources"
 	"github.com/spf13/cobra"
@@ -49,6 +50,7 @@ type SparkConfig struct {
 	FinkTriggerUpdate string `mapstructure:"fink_trigger_update"`
 	LocalTmpDirectory string
 	LogLevel          string `mapstructure:"log_level"`
+	PodTemplateFile   string
 	StorageClass      storageClass
 }
 
@@ -84,6 +86,7 @@ func getSparkConfig(task string) SparkConfig {
 		if err != nil {
 			log.Fatal(err)
 		}
+		c.PodTemplateFile = path.Join(c.LocalTmpDirectory, resources.ExecutorPodTemplateFile)
 	} else {
 		c.Binary = fmt.Sprintf("%s.py", task)
 	}
@@ -145,7 +148,7 @@ org.apache.hadoop:hadoop-aws:3.2.3`
 	}
 
 	if task == DISTRIBUTION {
-		kafkaOptTpl := fmt.Sprintf(`--conf spark.kubernetes.executor.podTemplateFile={{ .LocalTmpDirectory }}/pod-template.yaml \
+		kafkaOptTpl := fmt.Sprintf(`--conf spark.kubernetes.executor.podTemplateFile={{ .PodTemplateFile }} \
     --conf "spark.executor.extraJavaOptions=-Djava.security.auth.login.config=/tmp/%[1]s" \
     `, resources.KafkaJaasConfFile)
 		cmdTpl += kafkaOptTpl

@@ -19,7 +19,7 @@ const (
 	kubeConfigEnvName         = "KUBECONFIG"
 	kubeConfigDefaultFilename = ".kube/config"
 	configMapNameKafkaJaas    = "fink-kafka-jaas"
-	configMapNamePathJaas     = "fink-kafka-jaas"
+	configMapPathKafkaJaas    = "/etc/fink-broker"
 )
 
 type kubeVars struct {
@@ -30,7 +30,7 @@ type kubeVars struct {
 func getKubeVars() kubeVars {
 	kubeVarsInstance := kubeVars{
 		ConfigMapNameKafkaJaas: configMapNameKafkaJaas,
-		ConfigMapPathKafkaJaas: "/etc/fink/" + configMapNameKafkaJaas,
+		ConfigMapPathKafkaJaas: configMapPathKafkaJaas,
 	}
 	return kubeVarsInstance
 }
@@ -88,7 +88,9 @@ func createKafkaJaasConfigMap(c *DistributionConfig) {
 		Data: files,
 	}
 
-	_, err := clientSet.CoreV1().ConfigMaps(getCurrentNamespace()).Apply(context.TODO(), &cm, metav1.ApplyOptions{FieldManager: "application/apply-patch"})
+	_, err := clientSet.CoreV1().ConfigMaps(getCurrentNamespace()).Apply(
+		context.TODO(), &cm,
+		metav1.ApplyOptions{FieldManager: "application/apply-patch"})
 	if err != nil {
 		panic(err.Error())
 	}

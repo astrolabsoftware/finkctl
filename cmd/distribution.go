@@ -6,7 +6,6 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"log"
 	"os"
 
 	"github.com/astrolabsoftware/finkctl/resources"
@@ -50,7 +49,7 @@ var distributionCmd = &cobra.Command{
     -substream_prefix "{{ .SubstreamPrefix }}" \
     -night "{{ .Night }}"`
 
-		createExecutorPodTemplate(sc.LocalTmpDirectory)
+		createExecutorPodTemplate(sc.PodTemplateFile)
 
 		c := getDistributionConfig()
 
@@ -62,13 +61,13 @@ var distributionCmd = &cobra.Command{
 	},
 }
 
-func createExecutorPodTemplate(tmp string) {
+func createExecutorPodTemplate(filename string) {
 	c := getKubeVars()
 	kafkaJaasConf := format(resources.ExecutorPodTemplate, &c)
-
-	executorPodTemplateFile, err := os.Create(tmp + "/" + resources.ExecutorPodTemplateFile)
+	logger.Debugf("Writing PodTemplate to file: %s", filename)
+	executorPodTemplateFile, err := os.Create(filename)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	defer executorPodTemplateFile.Close()
 
