@@ -88,7 +88,7 @@ func createKafkaJaasConfigMap(c *DistributionConfig) {
 		Data: files,
 	}
 
-	_, err := clientSet.CoreV1().ConfigMaps(getCurrentNamespace()).Apply(context.TODO(), &cm, metav1.ApplyOptions{})
+	_, err := clientSet.CoreV1().ConfigMaps(getCurrentNamespace()).Apply(context.TODO(), &cm, metav1.ApplyOptions{FieldManager: "application/apply-patch"})
 	if err != nil {
 		panic(err.Error())
 	}
