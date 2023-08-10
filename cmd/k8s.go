@@ -98,7 +98,18 @@ func createKafkaJaasConfigMap(c *DistributionConfig) {
 }
 
 func getCurrentNamespace() string {
-	// FIXME: this is a temporary solution
-	// Watch https://stackoverflow.com/questions/76850938/how-to-get-current-namespace-of-an-out-cluster-go-kubernetes-client
-	return "default"
+
+	kubeconfig := getKubeConfig()
+
+	config, err := clientcmd.LoadFromFile(kubeconfig)
+	if err != nil {
+		panic(err.Error())
+	}
+	ns := config.Contexts[config.CurrentContext].Namespace
+
+	if len(ns) == 0 {
+		ns = "default"
+	}
+
+	return ns
 }
