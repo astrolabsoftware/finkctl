@@ -151,8 +151,8 @@ org.apache.hadoop:hadoop-aws:3.2.3`
 
 	if task == DISTRIBUTION {
 		kafkaOptTpl := fmt.Sprintf(`--conf spark.kubernetes.executor.podTemplateFile={{ .PodTemplateFile }} \
-    --conf "spark.executor.extraJavaOptions=-Djava.security.auth.login.config=/tmp/%[1]s" \
-    `, resources.KafkaJaasConfFile)
+    --conf "spark.executor.extraJavaOptions=-Djava.security.auth.login.config=%s/%s" \
+    `, configMapPathKafkaJaas, resources.KafkaJaasConfFile)
 		cmdTpl += kafkaOptTpl
 	}
 
