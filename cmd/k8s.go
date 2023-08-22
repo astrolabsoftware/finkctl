@@ -94,9 +94,27 @@ func createKafkaJaasConfigMap(c *DistributionConfig) {
 	if err != nil {
 		panic(err.Error())
 	}
-
 }
 
+// getKafkaPasswordFromSecret returns the kafka password
+// equivalent to "kubectl get -n kafka secrets/fink-producer --template={{.data.password}} | base64 --decode"
+func getKafkaPasswordFromSecret() string {
+
+	namespace := "kafka"
+	secretName := "fink-producer"
+	clientSet, _ := setKubeClient()
+
+	secret, err := clientSet.CoreV1().Secrets(namespace).Get(
+		context.TODO(), secretName, metav1.GetOptions{})
+	if err != nil {
+		panic(err.Error())
+	}
+
+	return string(secret.Data["password"])
+}
+
+// getCurrentNamespace returns the current namespace
+// for the current context of the kubeconfig file
 func getCurrentNamespace() string {
 
 	kubeconfig := getKubeConfig()
