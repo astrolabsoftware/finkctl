@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path"
 
@@ -124,7 +125,7 @@ func getKafkaTopics() []string {
 	if err != nil {
 		panic(err.Error())
 	}
-	logger.Debugf("Unmarshalling kafka topics: %s", string(d))
+	fmt.Printf("Unmarshalling kafka topics: %s", string(d))
 	if err := json.Unmarshal(d, &topics); err != nil {
 		panic(err.Error())
 	}
