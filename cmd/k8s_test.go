@@ -21,3 +21,9 @@ func TestGetKafkaPasswordFromSecret(t *testing.T) {
 	fmt.Printf("XXXXX : %s", secret)
 	assert.Equal(t, secret, "TODO")
 }
+
+func TestGetKafkaTopics(t *testing.T) {
+	topics := getKafkaTopics()
+	fmt.Printf("Kafka topics: %s", topics)
+	// TODO Check against the kubectl cli equivalent
+}

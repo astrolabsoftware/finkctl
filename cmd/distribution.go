@@ -102,7 +102,7 @@ func getDistributionConfig() DistributionConfig {
 		c.Night = viper.GetString("raw2science.night")
 	}
 	if c.KafkaCreds.Password == "" {
-		c.KafkaCreds.Password = viper.GetString("raw2science.night")
+		c.KafkaCreds.Password = getKafkaPasswordFromSecret()
 	}
 
 	return c

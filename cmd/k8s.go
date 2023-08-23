@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path"
 
+	kafka "github.com/RedHatInsights/strimzi-client-go/apis/kafka.strimzi.io/v1beta2"
 	"github.com/astrolabsoftware/finkctl/resources"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -100,17 +102,37 @@ func createKafkaJaasConfigMap(c *DistributionConfig) {
 // equivalent to "kubectl get -n kafka secrets/fink-producer --template={{.data.password}} | base64 --decode"
 func getKafkaPasswordFromSecret() string {
 
-	namespace := "kafka"
-	secretName := "fink-producer"
 	clientSet, _ := setKubeClient()
 
-	secret, err := clientSet.CoreV1().Secrets(namespace).Get(
-		context.TODO(), secretName, metav1.GetOptions{})
+	secret, err := clientSet.CoreV1().Secrets(kafkaNamespace).Get(
+		context.TODO(), kafkaSecretName, metav1.GetOptions{})
 	if err != nil {
 		panic(err.Error())
 	}
 
 	return string(secret.Data["password"])
+}
+
+// getKafkaTopic returns the kafka topics
+// equivalent to "kubectl get -n kafka kafkatopics.kafka.strimzi.io --template='{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}'"
+func getKafkaTopics() []string {
+
+	clientSet, _ := setKubeClient()
+
+	topics := &kafka.KafkaTopicList{}
+	d, err := clientSet.RESTClient().Get().Namespace(kafkaNamespace).AbsPath("/apis/kafka.strimzi.io/v1beta2/kafkatopics").DoRaw(context.TODO())
+	if err != nil {
+		panic(err)
+	}
+	if err := json.Unmarshal(d, &topics); err != nil {
+		panic(err)
+	}
+
+	topicNames := make([]string, len(topics.Items))
+	for _, topic := range topics.Items {
+		topicNames = append(topicNames, topic.Name)
+	}
+	return topicNames
 }
 
 // getCurrentNamespace returns the current namespace
