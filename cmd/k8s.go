@@ -120,7 +120,7 @@ func getKafkaTopics() []string {
 	clientSet, _ := setKubeClient()
 
 	topics := &kafka.KafkaTopicList{}
-	d, err := clientSet.RESTClient().Get().Namespace(kafkaNamespace).AbsPath("/apis/kafka.strimzi.io/v1beta2/kafkatopics").DoRaw(context.TODO())
+	d, err := clientSet.RESTClient().Get().AbsPath("/apis/kafka.strimzi.io/v1beta2/kafkatopics").DoRaw(context.TODO())
 	if err != nil {
 		panic(err.Error())
 	}
