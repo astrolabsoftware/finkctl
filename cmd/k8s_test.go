@@ -24,6 +24,7 @@ func TestGetKafkaPasswordFromSecret(t *testing.T) {
 
 func TestGetKafkaTopics(t *testing.T) {
 	topics := getKafkaTopics()
-	fmt.Printf("Kafka topics: %s", topics)
+
+	t.Logf("Kafka topics: %s", topics)
 	// TODO Check against the kubectl cli equivalent
 }

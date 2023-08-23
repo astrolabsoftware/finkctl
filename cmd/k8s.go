@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path"
 
@@ -121,18 +120,19 @@ func getKafkaTopics() []string {
 	clientSet, _ := setKubeClient()
 
 	topics := &kafka.KafkaTopicList{}
-	d, err := clientSet.RESTClient().Get().Namespace(kafkaNamespace).AbsPath("/apis/kafka.strimzi.io/v1beta2/kafkatopics").DoRaw(context.TODO())
+	d, err := clientSet.RESTClient().Get().AbsPath("/apis/kafka.strimzi.io/v1beta2/kafkatopics").DoRaw(context.TODO())
 	if err != nil {
 		panic(err.Error())
 	}
-	fmt.Printf("Unmarshalling kafka topics: %s", string(d))
 	if err := json.Unmarshal(d, &topics); err != nil {
 		panic(err.Error())
 	}
 
 	topicNames := make([]string, len(topics.Items))
 	for _, topic := range topics.Items {
-		topicNames = append(topicNames, topic.Name)
+		if topic.Namespace == kafkaNamespace {
+			topicNames = append(topicNames, topic.Name)
+		}
 	}
 	return topicNames
 }
