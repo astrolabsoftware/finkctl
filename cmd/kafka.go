@@ -16,6 +16,7 @@ var kafkaCmd = &cobra.Command{
 	Short: "List kafka topics produced by the fink-broker",
 	Run: func(cmd *cobra.Command, args []string) {
 		logger.Info("List kafka topics produced by the fink-broker")
+		rootCmd.PersistentFlags().Lookup("verbosity").NoOptDefVal = ""
 		for _, t := range getKafkaTopics() {
 			if strings.HasPrefix(t, finkPrefix) {
 				fmt.Println(t)

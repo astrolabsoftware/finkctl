@@ -18,11 +18,8 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path"
-	"regexp"
-	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -35,8 +32,7 @@ var secretCfgFile string
 
 var (
 	logger    *zap.SugaredLogger
-	verbosity string
-	loglevel  int
+	verbosity int
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -60,9 +56,8 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&verbosity, "verbosity", "v", "", "Verbosity level (-v for minimal, -vv for verbose)")
-	rootCmd.PersistentFlags().Lookup("verbosity").NoOptDefVal = ""
-	cobra.OnInitialize(parseVerbosity, initLogger, initConfig)
+	rootCmd.PersistentFlags().IntVarP(&verbosity, "verbosity", "v", 0, "Verbosity level (-v0 for minimal, -v2 for maximum)")
+	cobra.OnInitialize(initLogger, initConfig)
 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
@@ -73,21 +68,12 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Only print the command")
 }
 
-func parseVerbosity() {
-	match, _ := regexp.MatchString("^v*$", verbosity)
-	if !match {
-		fmt.Println("Invalid verbosity level")
-		os.Exit(1)
-	}
-	loglevel = strings.Count(verbosity, "v")
-}
-
 // setUpLogs set the log output ans the log level
 func initLogger() {
 	var loglevelStr string
-	if loglevel == 0 {
+	if verbosity == 0 {
 		loglevelStr = "error"
-	} else if loglevel == 1 {
+	} else if verbosity == 1 {
 		loglevelStr = "info"
 	} else {
 		loglevelStr = "debug"
