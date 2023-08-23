@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/magiconair/properties/assert"
@@ -18,13 +17,13 @@ func TestGetCurrentNamespace(t *testing.T) {
 func TestGetKafkaPasswordFromSecret(t *testing.T) {
 	secret := getKafkaPasswordFromSecret()
 	// TODO Check against the kubectl cli equivalent
-	fmt.Printf("XXXXX : %s", secret)
+	t.Logf("XXXXX : %s", secret)
 	assert.Equal(t, secret, "TODO")
 }
 
 func TestGetKafkaTopics(t *testing.T) {
 	topics := getKafkaTopics()
 
-	t.Logf("Kafka topics: %s", topics)
+	t.Logf("Kafka topics for %s namespace: %s", kafkaNamespace, topics)
 	// TODO Check against the kubectl cli equivalent
 }
