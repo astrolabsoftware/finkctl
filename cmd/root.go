@@ -61,6 +61,7 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&verbosity, "verbosity", "v", "", "Verbosity level (-v for minimal, -vv for verbose)")
+	rootCmd.PersistentFlags().Lookup("verbosity").NoOptDefVal = ""
 	cobra.OnInitialize(parseVerbosity, initLogger, initConfig)
 
 	// Here you will define your flags and configuration settings.
