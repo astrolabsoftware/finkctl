@@ -22,7 +22,7 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("kafka called")
-		for t := range getKafkaTopics() {
+		for _, t := range getKafkaTopics() {
 			if strings.HasPrefix(t, finkPrefix) {
 				fmt.Println(t)
 			}
