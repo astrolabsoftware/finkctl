@@ -18,8 +18,11 @@ package cmd
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path"
+	"regexp"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -31,8 +34,9 @@ var dryRun bool
 var secretCfgFile string
 
 var (
-	logger   *zap.SugaredLogger
-	logLevel int
+	logger    *zap.SugaredLogger
+	verbosity string
+	loglevel  int
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -56,7 +60,8 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initLogger, initConfig)
+	rootCmd.PersistentFlags().StringVarP(&verbosity, "verbosity", "v", "", "Verbosity level (-v for minimal, -vv for verbose)")
+	cobra.OnInitialize(parseVerbosity, initLogger, initConfig)
 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
@@ -65,14 +70,30 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $CWD/.finkctl then $HOME/.finkctl)")
 	rootCmd.PersistentFlags().StringVar(&secretCfgFile, "secret", "", "config file with secret (default is $CWD/.finkctl.secret then $HOME/.finkctl.secret)")
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Only print the command")
-	rootCmd.PersistentFlags().IntVarP(&logLevel, "log-level", "v", 0, "Set-up log level")
+}
+
+func parseVerbosity() {
+	match, _ := regexp.MatchString("^v*$", verbosity)
+	if !match {
+		fmt.Println("Invalid verbosity level")
+		os.Exit(1)
+	}
+	loglevel = strings.Count(verbosity, "v")
 }
 
 // setUpLogs set the log output ans the log level
 func initLogger() {
+	var loglevelStr string
+	if loglevel == 0 {
+		loglevelStr = "error"
+	} else if loglevel == 1 {
+		loglevelStr = "info"
+	} else {
+		loglevelStr = "debug"
+	}
 
 	rawJSON := []byte(`{
-		"level": "debug",
+		"level": "` + loglevelStr + `",
 		"encoding": "console",
 		"outputPaths": ["stdout", "/tmp/logs"],
 		"errorOutputPaths": ["stderr"],
