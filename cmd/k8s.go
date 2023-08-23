@@ -122,10 +122,11 @@ func getKafkaTopics() []string {
 	topics := &kafka.KafkaTopicList{}
 	d, err := clientSet.RESTClient().Get().Namespace(kafkaNamespace).AbsPath("/apis/kafka.strimzi.io/v1beta2/kafkatopics").DoRaw(context.TODO())
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
+	logger.Debugf("Unmarshalling kafka topics: %s", string(d))
 	if err := json.Unmarshal(d, &topics); err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 
 	topicNames := make([]string, len(topics.Items))
