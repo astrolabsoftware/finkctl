@@ -39,8 +39,8 @@ var waitTopicCmd = &cobra.Command{
 		select {
 		case <-allTopicsFound:
 			fmt.Printf("Condition met: Found %d fink topics.", expected)
-		case <-time.After(timeout * time.Second):
-			fmt.Println("Timeout reached")
+		case <-time.After(timeout):
+			fmt.Fprintf(os.Stderr, "error: timed out waiting for the condition on topics")
 			os.Exit(1)
 		}
 
@@ -48,7 +48,7 @@ var waitTopicCmd = &cobra.Command{
 }
 
 func init() {
-	getCmd.AddCommand(waitTopicCmd)
+	waitCmd.AddCommand(waitTopicCmd)
 
 	// Here you will define your flags and configuration settings.
 

@@ -28,6 +28,9 @@ var s3Cmd = &cobra.Command{
 	Use:   "s3",
 	Short: "Display S3 storage parameters",
 	Long:  `Display all S3 storage parameters for running fink-broker on Spark over Kubernetes`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		initConfig()
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		logConfiguration()
 	},

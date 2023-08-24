@@ -37,6 +37,9 @@ var sparkCmd = &cobra.Command{
 	Aliases: []string{"spk"},
 	Short:   "Display Fink-broker parameters, for running it on Spark over Kubernetes",
 	Long:    `Display all spark-submit parameters for running fink-broker on Spark over Kubernetes`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		initConfig()
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		logConfiguration()
 	},

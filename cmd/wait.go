@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -23,7 +24,9 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("wait called")
+		fmt.Fprintln(os.Stderr, "You must specify the type of resource to get."+
+			"Use \"finkctl get --help\" for a complete list of supported resource")
+		os.Exit(1)
 	},
 }
 
@@ -34,7 +37,7 @@ func init() {
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	waitCmd.PersistentFlags().DurationVar(&timeout, "timeout", 10, "Timeout in seconds")
+	waitCmd.PersistentFlags().DurationVar(&timeout, "timeout", 10*time.Second, "Timeout in seconds")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
