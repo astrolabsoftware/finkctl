@@ -21,7 +21,7 @@ var getTopicCmd = &cobra.Command{
 		if len(topics) == 0 {
 			fmt.Println("No fink topics found")
 		} else {
-			fmt.Println(strings.Join(topics, ", "))
+			fmt.Println(strings.Join(topics, "\n"))
 		}
 	},
 }

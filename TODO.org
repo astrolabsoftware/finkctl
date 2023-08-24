@@ -1,1 +1,2 @@
+* TODO implement finkctl run/delete for spark task
 * TODO Add option finctk s3 makebucket --port-forward
