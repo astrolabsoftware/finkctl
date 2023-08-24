@@ -32,6 +32,8 @@ and writes it to a shared file system for further processing and analysis.`,
   finkctl spark stream2raw --image=gitlab-registry.in2p3.fr/astrolabsoftware/fink/fink-broker:2076184`,
 	Run: func(cmd *cobra.Command, args []string) {
 
+		initConfig()
+
 		startMsg := "Launch stream2raw service"
 		logConfiguration()
 		cmd.Printf(startMsg)

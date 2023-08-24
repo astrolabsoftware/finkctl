@@ -19,18 +19,13 @@ package cmd
 import (
 	"encoding/json"
 	"os"
-	"path"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
-var cfgFile string
-var dryRun bool
-var secretCfgFile string
-
 var (
+	dryRun    bool
 	logger    *zap.SugaredLogger
 	verbosity int
 )
@@ -57,14 +52,12 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().IntVarP(&verbosity, "verbosity", "v", 0, "Verbosity level (-v0 for minimal, -v2 for maximum)")
-	cobra.OnInitialize(initLogger, initConfig)
+	cobra.OnInitialize(initLogger)
 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $CWD/.finkctl then $HOME/.finkctl)")
-	rootCmd.PersistentFlags().StringVar(&secretCfgFile, "secret", "", "config file with secret (default is $CWD/.finkctl.secret then $HOME/.finkctl.secret)")
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Only print the command")
 }
 
@@ -102,46 +95,4 @@ func initLogger() {
 	defer _logger.Sync()
 	logger = _logger.Sugar()
 
-}
-
-// initConfig reads in config file and ENV variables if set.
-func initConfig() {
-
-	// Find home directory.
-	home, err := os.UserHomeDir()
-	cobra.CheckErr(err)
-
-	cwd, err1 := os.Getwd()
-	cobra.CheckErr(err1)
-
-	viper.AddConfigPath(cwd)
-	viper.AddConfigPath(path.Join(home, ".finkctl"))
-	viper.SetConfigType("yaml")
-
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		viper.SetConfigName("finkctl.yaml")
-	}
-
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		logger.Debugf("Use config file: %s", viper.ConfigFileUsed())
-	} else {
-		logger.Fatalf("Fail reading configuration file: ", err, viper.ConfigFileUsed())
-	}
-
-	if secretCfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(secretCfgFile)
-	} else {
-		viper.SetConfigName("finkctl.secret.yaml")
-	}
-
-	if err := viper.MergeInConfig(); err == nil {
-		logger.Debugf("Use secret file: %s", viper.ConfigFileUsed())
-	} else {
-		logger.Fatalf("Fail reading secret file: ", err, viper.ConfigFileUsed())
-	}
 }

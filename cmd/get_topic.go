@@ -19,7 +19,7 @@ var getTopicCmd = &cobra.Command{
 		logger.Info("List kafka topics produced by the fink-broker")
 		topics := getFinkTopics()
 		if len(topics) == 0 {
-			logger.Info("No fink topics found")
+			fmt.Println("No fink topics found")
 		} else {
 			fmt.Println(strings.Join(topics, ", "))
 		}

@@ -26,6 +26,8 @@ shared file system and send it to Kafka streams.`,
 	  # Lauch raw2science using a custom image
 	  finkctl spark raw2science --image=gitlab-registry.in2p3.fr/astrolabsoftware/fink/fink-broker:2076184`,
 	Run: func(cmd *cobra.Command, args []string) {
+
+		initConfig()
 		logger.Info("Launch raw2science service")
 
 		sparkCmd, _ := generateSparkCmd(RAW2SCIENCE)
