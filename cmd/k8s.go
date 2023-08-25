@@ -125,7 +125,8 @@ func getKafkaTopics() []string {
 	clientSet, _ := setKubeClient()
 
 	topics := &kafka.KafkaTopicList{}
-	d, err := clientSet.RESTClient().Get().AbsPath("/apis/kafka.strimzi.io/v1beta2/kafkatopics").DoRaw(context.TODO())
+	url := fmt.Sprintf("/apis/kafka.strimzi.io/v1beta2/namespaces/%s/kafkatopics", kafkaNamespace)
+	d, err := clientSet.RESTClient().Get().AbsPath(url).DoRaw(context.TODO())
 	if err != nil {
 		panic(err.Error())
 	}
