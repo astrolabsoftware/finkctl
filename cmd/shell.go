@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -29,7 +30,8 @@ func ExecCmd(command string) (string, string) {
 		logger.Infof("%v", stderrBuf)
 
 	} else {
-		logger.Infof("Dry run %s", command)
+		logger.Info("Dry run")
+		fmt.Print(command)
 	}
 	return stdoutBuf.String(), stderrBuf.String()
 }

@@ -184,7 +184,6 @@ func waitForPodReady(ctx context.Context, clientset *kubernetes.Clientset, pod *
 func listPods(c *kubernetes.Clientset, namespace, selector string) (*v1.PodList, error) {
 	listOptions := metav1.ListOptions{LabelSelector: selector}
 	podList, err := c.CoreV1().Pods(namespace).List(context.TODO(), listOptions)
-
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +215,9 @@ func waitForPodExistsBySelector(c *kubernetes.Clientset, namespace, selector str
 	go func() {
 		for {
 			podList, _ := listPods(c, namespace, selector)
-			if podList.Size() == expected {
+			podCount := len(podList.Items)
+			logger.Debugf("Found %d pods with label %s", podCount, selector)
+			if podCount == expected {
 				allPodsExists <- true
 				return
 			}

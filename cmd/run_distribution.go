@@ -39,7 +39,6 @@ var distributionCmd = &cobra.Command{
   finkctl spark --image=<image> distribution`,
 	Run: func(cmd *cobra.Command, args []string) {
 		startMsg := "Launch distribution service"
-		cmd.Printf(startMsg)
 		logger.Info(startMsg)
 
 		sparkCmd, sc := generateSparkCmd(DISTRIBUTION)
