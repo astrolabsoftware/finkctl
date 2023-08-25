@@ -215,7 +215,7 @@ func ListPods(c *kubernetes.Clientset, namespace, selector string) (*v1.PodList,
 
 // Wait up to timeout seconds for all pods in 'namespace' with given 'selector' to enter running state.
 // Returns an error if no pods are found or not all discovered pods enter running state.
-func WaitForPodBySelectorRunning(c *kubernetes.Clientset, namespace, selector string, timeout time.Duration) error {
+func WaitForPodReadyBySelector(c *kubernetes.Clientset, namespace, selector string, timeout time.Duration) error {
 	podList, err := ListPods(c, namespace, selector)
 	if err != nil {
 		return err

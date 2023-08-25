@@ -13,10 +13,10 @@ var waitTaskCmd = &cobra.Command{
 	Aliases: []string{"tsk", "tasks"},
 	Short:   "Wait for fink-broker pods to be launched",
 	Run: func(cmd *cobra.Command, args []string) {
-		logger.Info("List kafka topics produced by the fink-broker")
+		logger.Info("Wait for fink-broker pods to be launched")
 		clientSet, _ := setKubeClient()
-		WaitForPodBySelectorRunning(clientSet, getCurrentNamespace(), "spark-role=executor", timeout)
-
+		WaitForPodReadyBySelector(clientSet, getCurrentNamespace(), "spark-role=driver", timeout)
+		WaitForPodReadyBySelector(clientSet, getCurrentNamespace(), "spark-role=executor", timeout)
 	},
 }
 
