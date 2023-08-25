@@ -136,9 +136,7 @@ func getKafkaTopics() []string {
 
 	topicNames := make([]string, len(topics.Items))
 	for _, topic := range topics.Items {
-		if topic.Namespace == kafkaNamespace {
-			topicNames = append(topicNames, topic.Name)
-		}
+		topicNames = append(topicNames, topic.Name)
 	}
 	return topicNames
 }
