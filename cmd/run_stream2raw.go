@@ -51,7 +51,7 @@ and writes it to a shared file system for further processing and analysis.`,
 }
 
 func init() {
-	sparkCmd.AddCommand(stream2rawCmd)
+	runCmd.AddCommand(stream2rawCmd)
 
 	// Here you will define your flags and configuration settings.
 

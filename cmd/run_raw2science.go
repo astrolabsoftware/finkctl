@@ -39,7 +39,7 @@ shared file system and send it to Kafka streams.`,
 }
 
 func init() {
-	sparkCmd.AddCommand(raw2scienceCmd)
+	runCmd.AddCommand(raw2scienceCmd)
 
 	// Here you will define your flags and configuration settings.
 

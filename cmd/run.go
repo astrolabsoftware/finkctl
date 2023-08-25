@@ -27,16 +27,15 @@ const (
 )
 
 const (
-	SPARK           string = "spark"
+	RUN             string = "run"
 	tmp_path_prefix string = "fink-broker-"
 )
 
-// sparkCmd represents the spark command
-var sparkCmd = &cobra.Command{
-	Use:     SPARK,
-	Aliases: []string{"spk"},
-	Short:   "Display Fink-broker parameters, for running it on Spark over Kubernetes",
-	Long:    `Display all spark-submit parameters for running fink-broker on Spark over Kubernetes`,
+// runCmd represents the spark command
+var runCmd = &cobra.Command{
+	Use:   RUN,
+	Short: "Display Fink-broker parameters, for running it on Spark over Kubernetes",
+	Long:  `Display all spark-submit parameters for running fink-broker on Spark over Kubernetes`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		initConfig()
 	},
@@ -60,22 +59,22 @@ type SparkConfig struct {
 }
 
 func init() {
-	rootCmd.AddCommand(sparkCmd)
+	rootCmd.AddCommand(runCmd)
 
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	sparkCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $CWD/.finkctl then $HOME/.finkctl)")
-	sparkCmd.PersistentFlags().StringVar(&secretCfgFile, "secret", "", "config file with secret (default is $CWD/.finkctl.secret then $HOME/.finkctl.secret)")
+	runCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $CWD/.finkctl then $HOME/.finkctl)")
+	runCmd.PersistentFlags().StringVar(&secretCfgFile, "secret", "", "config file with secret (default is $CWD/.finkctl.secret then $HOME/.finkctl.secret)")
 
-	sparkCmd.PersistentFlags().BoolVarP(&minimal, "minimal", "m", false, "Set minimal cpu/memory requests for spark pods")
+	runCmd.PersistentFlags().BoolVarP(&minimal, "minimal", "m", false, "Set minimal cpu/memory requests for spark pods")
 
-	sparkCmd.PersistentFlags().String("image", "", "fink-broker image name")
-	sparkCmd.PersistentFlags().BoolVarP(&noscience, "noscience", "n", false, "Disable execution of science modules, can be overridden by exporting environment variable NOSCIENCE=true")
-	viper.BindPFlag("spark.image", sparkCmd.PersistentFlags().Lookup("image"))
-	viper.BindPFlag("minimal", sparkCmd.PersistentFlags().Lookup("minimal"))
-	viper.BindPFlag("noscience", sparkCmd.PersistentFlags().Lookup("noscience"))
+	runCmd.PersistentFlags().String("image", "", "fink-broker image name")
+	runCmd.PersistentFlags().BoolVarP(&noscience, "noscience", "n", false, "Disable execution of science modules, can be overridden by exporting environment variable NOSCIENCE=true")
+	viper.BindPFlag("spark.image", runCmd.PersistentFlags().Lookup("image"))
+	viper.BindPFlag("minimal", runCmd.PersistentFlags().Lookup("minimal"))
+	viper.BindPFlag("noscience", runCmd.PersistentFlags().Lookup("noscience"))
 	viper.AutomaticEnv()
 
 }
@@ -84,7 +83,7 @@ func getSparkConfig(task string) SparkConfig {
 
 	var c SparkConfig
 
-	if err := viper.UnmarshalKey(SPARK, &c); err != nil {
+	if err := viper.UnmarshalKey(RUN, &c); err != nil {
 		logger.Fatalf("Error while getting spark configuration: %v", err)
 	}
 

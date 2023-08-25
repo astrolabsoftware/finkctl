@@ -3,18 +3,24 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path"
+	"time"
 
 	kafka "github.com/RedHatInsights/strimzi-client-go/apis/kafka.strimzi.io/v1beta2"
 	"github.com/astrolabsoftware/finkctl/resources"
 	"github.com/spf13/cobra"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/client-go/applyconfigurations/core/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+	applyv1 "k8s.io/client-go/applyconfigurations/core/v1"
 	applymetav1 "k8s.io/client-go/applyconfigurations/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	podv1 "k8s.io/kubernetes/pkg/api/v1/pod"
+	"k8s.io/kubernetes/pkg/client/conditions"
 )
 
 const (
@@ -79,7 +85,7 @@ func createKafkaJaasConfigMap(c *DistributionConfig) {
 	version := "v1"
 	name := configMapNameKafkaJaas
 
-	cm := v1.ConfigMapApplyConfiguration{
+	cm := applyv1.ConfigMapApplyConfiguration{
 		TypeMetaApplyConfiguration: applymetav1.TypeMetaApplyConfiguration{
 			Kind:       &kind,
 			APIVersion: &version,
@@ -154,4 +160,74 @@ func getCurrentNamespace() string {
 	}
 
 	return ns
+}
+
+// return a condition function that indicates whether the given pod is
+// currently running
+func isPodRunning(c *kubernetes.Clientset, podName, namespace string) wait.ConditionFunc {
+	return func() (bool, error) {
+		fmt.Printf(".") // progress bar!
+
+		pod, err := c.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+
+		switch pod.Status.Phase {
+		case v1.PodRunning:
+			return true, nil
+		case v1.PodFailed, v1.PodSucceeded:
+			return false, conditions.ErrPodCompleted
+		}
+		return false, nil
+	}
+}
+
+func waitForPodReady(ctx context.Context, clientset *kubernetes.Clientset, pod *v1.Pod, timeout time.Duration) error {
+	logger.Infof("waiting for pod %s to be running...", pod.Name)
+	return wait.PollUntilContextTimeout(ctx, 5*time.Second, timeout, true, func(context context.Context) (bool, error) {
+		job, err := clientset.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
+		if err != nil {
+			return false, fmt.Errorf("failed to detect pod %s. %+v", pod.Name, err)
+		}
+
+		if podv1.IsPodTerminal(pod) {
+			return false, fmt.Errorf("job %s failed", job.Name)
+		}
+		if podv1.IsPodReady(pod) {
+			return true, nil
+		}
+		logger.Debugf("pod is still initializing")
+		return false, nil
+	})
+}
+
+// Returns the list of currently scheduled or running pods in `namespace` with the given selector
+func ListPods(c *kubernetes.Clientset, namespace, selector string) (*v1.PodList, error) {
+	listOptions := metav1.ListOptions{LabelSelector: selector}
+	podList, err := c.CoreV1().Pods(namespace).List(context.TODO(), listOptions)
+
+	if err != nil {
+		return nil, err
+	}
+	return podList, nil
+}
+
+// Wait up to timeout seconds for all pods in 'namespace' with given 'selector' to enter running state.
+// Returns an error if no pods are found or not all discovered pods enter running state.
+func WaitForPodBySelectorRunning(c *kubernetes.Clientset, namespace, selector string, timeout time.Duration) error {
+	podList, err := ListPods(c, namespace, selector)
+	if err != nil {
+		return err
+	}
+	if len(podList.Items) == 0 {
+		return fmt.Errorf("no pods in %s with selector %s", namespace, selector)
+	}
+
+	for _, pod := range podList.Items {
+		if err := waitForPodReady(context.TODO(), c, &pod, timeout); err != nil {
+			return err
+		}
+	}
+	return nil
 }

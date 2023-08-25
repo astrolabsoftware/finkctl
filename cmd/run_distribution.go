@@ -76,7 +76,7 @@ func createExecutorPodTemplate(filename string) {
 }
 
 func init() {
-	sparkCmd.AddCommand(distributionCmd)
+	runCmd.AddCommand(distributionCmd)
 
 	// Here you will define your flags and configuration settings.
 
