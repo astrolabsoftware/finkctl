@@ -164,13 +164,13 @@ func getCurrentNamespace() string {
 func waitForPodReady(ctx context.Context, clientset *kubernetes.Clientset, pod *v1.Pod, timeout time.Duration) error {
 	logger.Infof("waiting for pod %s to be running...", pod.Name)
 	return wait.PollUntilContextTimeout(ctx, 5*time.Second, timeout, true, func(context context.Context) (bool, error) {
-		job, err := clientset.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
+		pod, err := clientset.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
 		if err != nil {
 			return false, fmt.Errorf("failed to detect pod %s. %+v", pod.Name, err)
 		}
 
 		if podv1.IsPodTerminal(pod) {
-			return false, fmt.Errorf("job %s failed", job.Name)
+			return false, fmt.Errorf("job %s failed", pod.Name)
 		}
 		if podv1.IsPodReady(pod) {
 			return true, nil
