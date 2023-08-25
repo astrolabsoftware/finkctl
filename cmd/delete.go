@@ -15,13 +15,8 @@ import (
 // deleteCmd represents the delete command
 var deleteCmd = &cobra.Command{
 	Use:   "delete",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Delete all spark pods in current namespace",
+	Long:  `Delete all spark pods in current namespace, using the label 'spark-app-selector'.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Printf("Delete all spark pods in current namespace")
 		clientSet, _ := setKubeClient()
@@ -44,7 +39,7 @@ to quickly create a Cobra application.`,
 }
 
 func init() {
-	runCmd.AddCommand(deleteCmd)
+	rootCmd.AddCommand(deleteCmd)
 
 	// Here you will define your flags and configuration settings.
 
