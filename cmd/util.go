@@ -36,7 +36,7 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		logger.Debugf("Use config file: %s", viper.ConfigFileUsed())
 	} else {
-		logger.Fatalf("Fail reading configuration file: ", err, viper.ConfigFileUsed())
+		logger.Fatalf("Fail reading configuration files in $FINKCONFIG, $HOME/.fink, then $CWD: ", err, viper.ConfigFileUsed())
 	}
 
 	viper.SetConfigName("finkctl.secret.yaml")
@@ -44,7 +44,7 @@ func initConfig() {
 	if err := viper.MergeInConfig(); err == nil {
 		logger.Debugf("Use secret file: %s", viper.ConfigFileUsed())
 	} else {
-		logger.Fatalf("Fail reading secret file: ", err, viper.ConfigFileUsed())
+		logger.Fatalf("Fail reading secret files in $FINKCONFIG, $HOME/.fink, then $CWD: ", err, viper.ConfigFileUsed())
 	}
 }
 
