@@ -10,26 +10,27 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// initConfig reads in config file and ENV variables if set.
+// initConfig reads config files
 func initConfig() {
 
-	// Find home directory.
-	home, err := os.UserHomeDir()
-	cobra.CheckErr(err)
+	var finkConfigPath = os.Getenv("FINKCONFIG")
+	if len(finkConfigPath) == 0 {
+		// Find home directory.
+		home, err := os.UserHomeDir()
+		cobra.CheckErr(err)
 
-	cwd, err1 := os.Getwd()
-	cobra.CheckErr(err1)
+		cwd, err1 := os.Getwd()
+		cobra.CheckErr(err1)
+		viper.AddConfigPath(cwd)
 
-	viper.AddConfigPath(cwd)
-	viper.AddConfigPath(path.Join(home, ".finkctl"))
+		finkConfigPath = path.Join(home, ".finkctl")
+
+	}
+
+	viper.AddConfigPath(finkConfigPath)
 	viper.SetConfigType("yaml")
 
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		viper.SetConfigName("finkctl.yaml")
-	}
+	viper.SetConfigName("finkctl.yaml")
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
@@ -38,12 +39,7 @@ func initConfig() {
 		logger.Fatalf("Fail reading configuration file: ", err, viper.ConfigFileUsed())
 	}
 
-	if secretCfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(secretCfgFile)
-	} else {
-		viper.SetConfigName("finkctl.secret.yaml")
-	}
+	viper.SetConfigName("finkctl.secret.yaml")
 
 	if err := viper.MergeInConfig(); err == nil {
 		logger.Debugf("Use secret file: %s", viper.ConfigFileUsed())

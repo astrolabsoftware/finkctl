@@ -40,18 +40,6 @@ func init() {
 
 	rootCmd.AddCommand(s3Cmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// s3Cmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// s3Cmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	s3Cmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $CWD/.finkctl then $HOME/.finkctl)")
-	s3Cmd.PersistentFlags().StringVar(&secretCfgFile, "secret", "", "config file with secret (default is $CWD/.finkctl.secret then $HOME/.finkctl.secret)")
-
 	s3Cmd.PersistentFlags().String("endpoint", "", "S3 service URL")
 	viper.BindPFlag("s3.endpoint", s3Cmd.PersistentFlags().Lookup("endpoint"))
 

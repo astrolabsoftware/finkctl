@@ -34,7 +34,16 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "finkctl",
 	Short: "Command-line tool for managing and interacting with the Fink broker and its components on Spark over Kubernetes",
-	Long:  `finkctl is a command-line tool for managing and interacting with the Fink broker and its components.`,
+	Long: `finkctl is a command-line tool for managing and interacting with the Fink broker and its components.
+
+	finkctl configuration directory is:
+	1. directory referenced by FINKCONFIG environment variable
+	2. current working directory
+	3. $HOME/.finkctl
+	Example of configuration files are available here:
+	- https://github.com/astrolabsoftware/fink-broker/blob/master/itest/finkctl.yaml
+	- https://github.com/astrolabsoftware/fink-broker/blob/master/itest/finkctl.secret.yaml
+`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },

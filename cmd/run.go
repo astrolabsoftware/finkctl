@@ -14,8 +14,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-var cfgFile string
-var secretCfgFile string
 var minimal bool
 var noscience bool
 
@@ -62,11 +60,6 @@ func init() {
 	rootCmd.AddCommand(runCmd)
 
 	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	runCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $CWD/.finkctl then $HOME/.finkctl)")
-	runCmd.PersistentFlags().StringVar(&secretCfgFile, "secret", "", "config file with secret (default is $CWD/.finkctl.secret then $HOME/.finkctl.secret)")
 
 	runCmd.PersistentFlags().BoolVarP(&minimal, "minimal", "m", false, "Set minimal cpu/memory requests for spark pods")
 
