@@ -34,6 +34,7 @@ var waitTaskCmd = &cobra.Command{
 				fmt.Fprintf(os.Stderr, "error: timed out waiting for %s pods to be ready, reason: %s\n", value, err)
 				os.Exit(1)
 			}
+			cmd.Printf("Pods with label '%s' are ready\n", selector)
 		}
 	},
 }

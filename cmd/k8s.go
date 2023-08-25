@@ -227,7 +227,7 @@ func waitForPodExistsBySelector(c *kubernetes.Clientset, namespace, selector str
 
 	select {
 	case <-allPodsExists:
-		fmt.Printf("Condition met: Found %d pods with label %s", expected, selector)
+		logger.Debugf("Condition met: Found %d pods with label %s\n", expected, selector)
 		return nil
 	case <-time.After(timeout):
 		return fmt.Errorf("error: timed out waiting for pods with label %s", selector)

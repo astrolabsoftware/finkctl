@@ -59,3 +59,15 @@ func TestWaitForPodExistsBySelector(t *testing.T) {
 		os.Exit(1)
 	}
 }
+
+func TestWaitForPodReadyBySelector(t *testing.T) {
+	clientSet, _ := setKubeClient()
+	namespace := "kube-system"
+	selector := "component=etcd"
+	logger.Infof("Wait for pods with label '%s' to be created", selector)
+	err := waitForPodReadyBySelector(clientSet, namespace, selector, timeout)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: timed out waiting for %s pods to be created, reason: %s\n", selector, err)
+		os.Exit(1)
+	}
+}
