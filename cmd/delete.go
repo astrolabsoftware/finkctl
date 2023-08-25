@@ -6,7 +6,7 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"log"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -26,15 +26,17 @@ var deleteCmd = &cobra.Command{
 			LabelSelector: "spark-app-selector",
 		})
 		if err != nil {
-			log.Fatal(err)
+			fmt.Fprintf(os.Stderr, "error: unable to list spark pod, reason: %s\n", err)
+			os.Exit(1)
 		}
 
 		for _, p := range pods.Items {
 			err := clientSet.CoreV1().Pods(p.Namespace).Delete(context.TODO(), p.Name, metav1.DeleteOptions{})
 			if err != nil {
-				log.Fatal(err)
+				fmt.Fprintf(os.Stderr, "error: unable to delete spark pod %s, reason: %s\n", p.Name, err)
+				os.Exit(1)
 			}
-			log.Printf("Delete pod %s", p.Name)
+			logger.Infof("Delete pod %s", p.Name)
 		}
 	},
 }
