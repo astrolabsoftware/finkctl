@@ -20,7 +20,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	podv1 "k8s.io/kubernetes/pkg/api/v1/pod"
-	"k8s.io/kubernetes/pkg/client/conditions"
 )
 
 const (
@@ -162,27 +161,6 @@ func getCurrentNamespace() string {
 	return ns
 }
 
-// return a condition function that indicates whether the given pod is
-// currently running
-func isPodRunning(c *kubernetes.Clientset, podName, namespace string) wait.ConditionFunc {
-	return func() (bool, error) {
-		fmt.Printf(".") // progress bar!
-
-		pod, err := c.CoreV1().Pods(namespace).Get(context.TODO(), podName, metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
-
-		switch pod.Status.Phase {
-		case v1.PodRunning:
-			return true, nil
-		case v1.PodFailed, v1.PodSucceeded:
-			return false, conditions.ErrPodCompleted
-		}
-		return false, nil
-	}
-}
-
 func waitForPodReady(ctx context.Context, clientset *kubernetes.Clientset, pod *v1.Pod, timeout time.Duration) error {
 	logger.Infof("waiting for pod %s to be running...", pod.Name)
 	return wait.PollUntilContextTimeout(ctx, 5*time.Second, timeout, true, func(context context.Context) (bool, error) {
@@ -203,7 +181,7 @@ func waitForPodReady(ctx context.Context, clientset *kubernetes.Clientset, pod *
 }
 
 // Returns the list of currently scheduled or running pods in `namespace` with the given selector
-func ListPods(c *kubernetes.Clientset, namespace, selector string) (*v1.PodList, error) {
+func listPods(c *kubernetes.Clientset, namespace, selector string) (*v1.PodList, error) {
 	listOptions := metav1.ListOptions{LabelSelector: selector}
 	podList, err := c.CoreV1().Pods(namespace).List(context.TODO(), listOptions)
 
@@ -215,8 +193,8 @@ func ListPods(c *kubernetes.Clientset, namespace, selector string) (*v1.PodList,
 
 // Wait up to timeout seconds for all pods in 'namespace' with given 'selector' to enter running state.
 // Returns an error if no pods are found or not all discovered pods enter running state.
-func WaitForPodReadyBySelector(c *kubernetes.Clientset, namespace, selector string, timeout time.Duration) error {
-	podList, err := ListPods(c, namespace, selector)
+func waitForPodReadyBySelector(c *kubernetes.Clientset, namespace, selector string, timeout time.Duration) error {
+	podList, err := listPods(c, namespace, selector)
 	if err != nil {
 		return err
 	}
@@ -230,4 +208,27 @@ func WaitForPodReadyBySelector(c *kubernetes.Clientset, namespace, selector stri
 		}
 	}
 	return nil
+}
+
+func waitForPodExistsBySelector(c *kubernetes.Clientset, namespace, selector string, timeout time.Duration, expected int) error {
+	allPodsExists := make(chan bool, 1)
+
+	go func() {
+		for {
+			podList, _ := listPods(c, namespace, selector)
+			if podList.Size() == expected {
+				allPodsExists <- true
+				return
+			}
+			time.Sleep(time.Millisecond * 500)
+		}
+	}()
+
+	select {
+	case <-allPodsExists:
+		fmt.Printf("Condition met: Found %d pods with label %s", expected, selector)
+		return nil
+	case <-time.After(timeout):
+		return fmt.Errorf("error: timed out waiting for pods with label %s", selector)
+	}
 }
