@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/spf13/cobra"
@@ -18,7 +19,7 @@ var deleteCmd = &cobra.Command{
 	Short: "Delete all spark pods in current namespace",
 	Long:  `Delete all spark pods in current namespace, using the label 'spark-app-selector'.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		log.Printf("Delete all spark pods in current namespace")
+		fmt.Printf("Delete all spark pods in current namespace")
 		clientSet, _ := setKubeClient()
 
 		pods, err := clientSet.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{
