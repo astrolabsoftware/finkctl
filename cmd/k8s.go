@@ -126,6 +126,7 @@ func getKafkaTopics() []string {
 
 	topics := &kafka.KafkaTopicList{}
 	url := fmt.Sprintf("/apis/kafka.strimzi.io/v1beta2/namespaces/%s/kafkatopics", kafkaNamespace)
+	logger.Debugf("Get Kafka topics from %s", url)
 	d, err := clientSet.RESTClient().Get().AbsPath(url).DoRaw(context.TODO())
 	if err != nil {
 		panic(err.Error())
