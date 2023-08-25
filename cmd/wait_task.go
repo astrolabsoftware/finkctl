@@ -22,13 +22,13 @@ var waitTaskCmd = &cobra.Command{
 		clientSet, _ := setKubeClient()
 		for _, value := range labelValues {
 			selector := "spark-role=" + value
-			logger.Info("Wait for fink-broker pods with label '%s' to be created", selector)
+			logger.Infof("Wait for fink-broker pods with label '%s' to be created", selector)
 			err := waitForPodExistsBySelector(clientSet, getCurrentNamespace(), selector, timeout, expected_pods)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "error: timed out waiting for %s pods to be created, reason: %s", value, err)
 				os.Exit(1)
 			}
-			logger.Info("Wait for fink-broker pods with label '%s' to be ready", selector)
+			logger.Infof("Wait for fink-broker pods with label '%s' to be ready", selector)
 			err = waitForPodReadyBySelector(clientSet, getCurrentNamespace(), selector, timeout)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "error: timed out waiting for %s pods to be ready, reason: %s", value, err)
