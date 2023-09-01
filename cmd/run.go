@@ -125,13 +125,14 @@ com.amazonaws:aws-java-sdk-bundle:1.11.375,\
 org.apache.hadoop:hadoop-aws:3.2.3`
 
 	// TODO check https://docs.cloudera.com/cdp-private-cloud-base/7.1.8/ozone-storing-data/topics/ozone-config-spark-s3a.html
-	cmdTpl := `spark-submit --master "k8s://{{ .ApiServerUrl }}" \
+	cmdTpl := fmt.Sprintf(`spark-submit --master "k8s://{{ .ApiServerUrl }}" \
     --deploy-mode cluster \
     --conf spark.executor.instances=1 \
+    --conf spark.kubernetes.namespace=%s \
     --conf spark.kubernetes.authenticate.driver.serviceAccountName=spark \
     --conf spark.kubernetes.container.image="{{ .Image }}" \
     --conf spark.driver.extraJavaOptions="-Divy.cache.dir=/tmp -Divy.home=/tmp" \
-    `
+    `, getCurrentNamespace())
 
 	if sc.StorageClass == s3 {
 		s3c := getS3Config()
