@@ -160,8 +160,8 @@ org.apache.hadoop:hadoop-aws:3.2.3`
 	if minimal {
 		cmdTpl += `--conf spark.kubernetes.driver.request.cores=0 \
     --conf spark.kubernetes.executor.request.cores=0 \
-    --conf spark.driver.memory=500m \
-    --conf spark.executor.memory=500m \
+    --conf spark.driver.memory=300m \
+    --conf spark.executor.memory=300m \
     `
 	}
 	cmdTpl += `local:///home/fink/fink-broker/bin/{{ .Binary }} \
