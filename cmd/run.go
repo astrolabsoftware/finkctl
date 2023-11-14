@@ -9,7 +9,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/astrolabsoftware/finkctl/resources"
+	"github.com/astrolabsoftware/finkctl/v3/resources"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

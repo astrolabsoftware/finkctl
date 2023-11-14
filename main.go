@@ -16,7 +16,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 package main
 
-import "github.com/astrolabsoftware/finkctl/cmd"
+import "github.com/astrolabsoftware/finkctl/v3/cmd"
 
 func main() {
 	cmd.Execute()

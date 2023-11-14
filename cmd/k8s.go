@@ -9,7 +9,7 @@ import (
 	"time"
 
 	kafka "github.com/RedHatInsights/strimzi-client-go/apis/kafka.strimzi.io/v1beta2"
-	"github.com/astrolabsoftware/finkctl/resources"
+	"github.com/astrolabsoftware/finkctl/v3/resources"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

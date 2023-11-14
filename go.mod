@@ -1,4 +1,4 @@
-module github.com/astrolabsoftware/finkctl
+module github.com/astrolabsoftware/finkctl/v3
 
 go 1.19
 
