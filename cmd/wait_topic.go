@@ -28,6 +28,7 @@ var waitTopicCmd = &cobra.Command{
 		go func() {
 			for {
 				topics := getFinkTopics()
+				logger.Infof("Found topics: %v", topics)
 				if len(topics) == expected {
 					allTopicsFound <- true
 					return
