@@ -50,5 +50,4 @@ func Version() (version, sum string) {
 		sum = b.Main.Sum
 	}
 	return version, sum
-
 }
