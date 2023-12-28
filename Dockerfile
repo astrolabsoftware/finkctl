@@ -4,9 +4,9 @@ ARG spark_py_image
 FROM golang:1.21 AS builder
 WORKDIR /app
 COPY . .
-RUN go build -o bin
+RUN go build
 
 # Final stage
 FROM ${spark_py_image}
-COPY --from=builder /app/bin /bin
-CMD ["/bin"]
+COPY --from=builder /app/finkctl /usr/local/bin
+ENV PATH="$PATH:/opt/spark/bin"

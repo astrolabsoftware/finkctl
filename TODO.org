@@ -1,3 +1,4 @@
+* TODO use spark image, not spark-py one.
 * TODO implement wait for spark task (distribute, raw2science, stream2raw)
 * TODO implement finkctl run/delete for spark task
 * TODO Add option finctk s3 makebucket --port-forward
