@@ -31,7 +31,7 @@ func ExecCmd(command string) (string, string) {
 
 	} else {
 		logger.Info("Dry run")
-		fmt.Print(command)
+		fmt.Println(command)
 	}
 	return stdoutBuf.String(), stderrBuf.String()
 }

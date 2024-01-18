@@ -120,7 +120,7 @@ func getKafkaPasswordFromSecret() string {
 
 // getKafkaTopic returns the kafka topics
 // equivalent to "kubectl get -n kafka kafkatopics.kafka.strimzi.io --template='{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}'"
-func getKafkaTopics() []string {
+func getKafkaTopics() ([]string, error) {
 
 	clientSet, _ := setKubeClient()
 
@@ -129,17 +129,17 @@ func getKafkaTopics() []string {
 	logger.Debugf("Get Kafka topics from %s", url)
 	d, err := clientSet.RESTClient().Get().AbsPath(url).DoRaw(context.TODO())
 	if err != nil {
-		panic(err.Error())
+		return nil, fmt.Errorf("failed to get kafka topics. %+v", err)
 	}
 	if err := json.Unmarshal(d, &topics); err != nil {
-		panic(err.Error())
+		return nil, fmt.Errorf("failed to unmarshal kafka topics. %+v", err)
 	}
 
 	topicNames := make([]string, len(topics.Items))
 	for _, topic := range topics.Items {
 		topicNames = append(topicNames, topic.Name)
 	}
-	return topicNames
+	return topicNames, nil
 }
 
 // getCurrentNamespace returns the current namespace

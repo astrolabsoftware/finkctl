@@ -14,8 +14,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-var minimal bool
 var noscience bool
+var image string
 
 type storageClass int
 
@@ -45,6 +45,7 @@ var runCmd = &cobra.Command{
 type SparkConfig struct {
 	ApiServerUrl      string
 	Binary            string
+	Cpu               string `mapstructure:"cpu"`
 	Image             string `mapstructure:"image"`
 	Producer          string `mapstructure:"producer"`
 	OnlineDataPrefix  string `mapstructure:"online_data_prefix"`
@@ -52,6 +53,7 @@ type SparkConfig struct {
 	FinkTriggerUpdate string `mapstructure:"fink_trigger_update"`
 	LocalTmpDirectory string
 	LogLevel          string `mapstructure:"log_level"`
+	Memory            string `mapstructure:"memory"`
 	PodTemplateFile   string
 	StorageClass      storageClass
 }
@@ -59,17 +61,12 @@ type SparkConfig struct {
 func init() {
 	rootCmd.AddCommand(runCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	runCmd.PersistentFlags().BoolVarP(&minimal, "minimal", "m", false, "Set minimal cpu/memory requests for spark pods")
-
-	runCmd.PersistentFlags().String("image", "", "fink-broker image name")
+	runCmd.PersistentFlags().StringVarP(&image, "image", "i", "", "fink-broker image name")
 	runCmd.PersistentFlags().BoolVarP(&noscience, "noscience", "n", false, "Disable execution of science modules, can be overridden by exporting environment variable NOSCIENCE=true")
-	viper.BindPFlag("spark.image", runCmd.PersistentFlags().Lookup("image"))
-	viper.BindPFlag("minimal", runCmd.PersistentFlags().Lookup("minimal"))
+
+	// FIXME validate support for env variable fo noscience?
 	viper.BindPFlag("noscience", runCmd.PersistentFlags().Lookup("noscience"))
 	viper.AutomaticEnv()
-
 }
 
 func getSparkConfig(task string) SparkConfig {
@@ -78,6 +75,13 @@ func getSparkConfig(task string) SparkConfig {
 
 	if err := viper.UnmarshalKey(RUN, &c); err != nil {
 		logger.Fatalf("Error while getting spark configuration: %v", err)
+	}
+
+	if viper.GetString(task+".cpu") != "" {
+		c.Cpu = viper.GetString(task + ".cpu")
+	}
+	if viper.GetString(task+".memory") != "" {
+		c.Memory = viper.GetString(task + ".memory")
 	}
 
 	if task == DISTRIBUTION {
@@ -101,9 +105,9 @@ func getSparkConfig(task string) SparkConfig {
 		c.StorageClass = s3
 	}
 
-	// FIXME UnmarshalKey() does not seems to support correctly nested key management
-	c.Image = viper.GetString("spark.image")
-
+	if image != "" {
+		c.Image = image
+	}
 	return c
 }
 
@@ -157,12 +161,16 @@ org.apache.hadoop:hadoop-aws:3.2.3`
 		cmdTpl += kafkaOptTpl
 	}
 
-	if minimal {
-		cmdTpl += `--conf spark.kubernetes.driver.request.cores=0 \
-    --conf spark.kubernetes.executor.request.cores=0 \
-    --conf spark.driver.memory=466m \
-    --conf spark.executor.memory=466m \
-    `
+	if sc.Memory != "" {
+		cmdTpl += fmt.Sprintf(`--conf spark.driver.memory=%[1]s \
+    --conf spark.executor.memory=%[1]s \
+    `, sc.Memory)
+	}
+
+	if sc.Cpu != "" {
+		cmdTpl += fmt.Sprintf(`--conf spark.kubernetes.driver.request.cores=%[1]s \
+    --conf spark.kubernetes.executor.request.cores=%[1]s \
+    `, sc.Cpu)
 	}
 	cmdTpl += `local:///home/fink/fink-broker/bin/{{ .Binary }} \
     -log_level "{{ .LogLevel }}" \

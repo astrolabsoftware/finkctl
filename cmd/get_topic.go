@@ -17,7 +17,8 @@ var getTopicCmd = &cobra.Command{
 	Short:   "List kafka topics produced by the fink-broker",
 	Run: func(cmd *cobra.Command, args []string) {
 		logger.Info("List kafka topics produced by the fink-broker")
-		topics := getFinkTopics()
+		topics, err := getFinkTopics()
+		cobra.CheckErr(err)
 		if len(topics) == 0 {
 			fmt.Println("No fink topics found")
 		} else {
