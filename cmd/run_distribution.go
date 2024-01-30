@@ -22,7 +22,9 @@ type KafkaCreds struct {
 }
 
 type DistributionConfig struct {
+	Cpu                 string     `mapstructure:"cpu"`
 	DistributionServers string     `mapstructure:"distribution_servers"`
+	Memory              string     `mapstructure:"memory"`
 	SubstreamPrefix     string     `mapstructure:"substream_prefix"`
 	DistributionSchema  string     `mapstructure:"distribution_schema"`
 	Night               string     `mapstructure:"night"`
@@ -41,6 +43,7 @@ var distributionCmd = &cobra.Command{
 		startMsg := "Launch distribution service"
 		logger.Info(startMsg)
 
+		c := getDistributionConfig()
 		sparkCmd, sc := generateSparkCmd(DISTRIBUTION)
 
 		cmdTpl := sparkCmd + `-distribution_servers "{{ .DistributionServers }}" \
@@ -49,8 +52,6 @@ var distributionCmd = &cobra.Command{
     -night "{{ .Night }}"`
 
 		createExecutorPodTemplate(sc.PodTemplateFile)
-
-		c := getDistributionConfig()
 
 		createKafkaJaasConfigMap(&c)
 

@@ -19,7 +19,8 @@ var waitTopicCmd = &cobra.Command{
 	Aliases: []string{"to", "topics"},
 	Short:   "Wait for kafka topics produced by the fink-broker",
 	Run: func(cmd *cobra.Command, args []string) {
-		logger.Info("List kafka topics produced by the fink-broker")
+		start := time.Now()
+		logger.Info("Wait for kafka topics produced by the fink-broker")
 
 		// Channel to signal when the condition is met
 		allTopicsFound := make(chan bool, 1)
@@ -27,13 +28,16 @@ var waitTopicCmd = &cobra.Command{
 		// Start a goroutine to check the condition
 		go func() {
 			for {
-				topics := getFinkTopics()
-				logger.Infof("Found topics: %v", topics)
+				topics, err := getFinkTopics()
+				cobra.CheckErr(err)
+				t := time.Now()
+				elapsed := t.Sub(start)
+				logger.Infof("%s Found topics: %s (%d/%d)", elapsed.Round(1), topics, len(topics), expected)
 				if len(topics) == expected {
 					allTopicsFound <- true
 					return
 				}
-				time.Sleep(time.Millisecond * 500) // Adjust the sleep duration as needed
+				time.Sleep(time.Second * 10) // Adjust the sleep duration as needed
 			}
 		}()
 

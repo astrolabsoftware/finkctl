@@ -56,16 +56,11 @@ func Execute() {
 	if err != nil {
 		os.Exit(1)
 	}
-
 }
 
 func init() {
 	rootCmd.PersistentFlags().IntVarP(&verbosity, "verbosity", "v", 0, "Verbosity level (-v0 for minimal, -v2 for maximum)")
 	cobra.OnInitialize(initLogger)
-
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
 
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Only print the command")
 }
