@@ -34,7 +34,6 @@ and writes it to a shared file system for further processing and analysis.`,
 
 		startMsg := "Launch stream2raw service"
 		logConfiguration()
-		cmd.Printf(startMsg)
 		logger.Info(startMsg)
 		sparkCmd, _ := generateSparkCmd(STREAM2RAW)
 

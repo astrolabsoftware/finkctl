@@ -29,7 +29,10 @@ func TestGetKafkaPasswordFromSecret(t *testing.T) {
 }
 
 func TestGetKafkaTopics(t *testing.T) {
-	topics := getKafkaTopics()
+	topics, err := getKafkaTopics()
+	if err != nil {
+		t.Errorf("Error getting Kafka topics: %s", err)
+	}
 
 	t.Logf("Kafka topics for %s namespace: %s", kafkaNamespace, topics)
 	// TODO Check against the kubectl cli equivalent

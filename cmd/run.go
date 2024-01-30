@@ -14,8 +14,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-var minimal bool
 var noscience bool
+var image string
 
 type storageClass int
 
@@ -45,13 +45,16 @@ var runCmd = &cobra.Command{
 type SparkConfig struct {
 	ApiServerUrl      string
 	Binary            string
+	Cpus              string `mapstructure:"cpus"`
 	Image             string `mapstructure:"image"`
+	Instances         string `mapstructure:"instances"`
 	Producer          string `mapstructure:"producer"`
 	OnlineDataPrefix  string `mapstructure:"online_data_prefix"`
 	Packages          string
 	FinkTriggerUpdate string `mapstructure:"fink_trigger_update"`
 	LocalTmpDirectory string
 	LogLevel          string `mapstructure:"log_level"`
+	Memory            string `mapstructure:"memory"`
 	PodTemplateFile   string
 	StorageClass      storageClass
 }
@@ -59,52 +62,57 @@ type SparkConfig struct {
 func init() {
 	rootCmd.AddCommand(runCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	runCmd.PersistentFlags().BoolVarP(&minimal, "minimal", "m", false, "Set minimal cpu/memory requests for spark pods")
-
-	runCmd.PersistentFlags().String("image", "", "fink-broker image name")
+	runCmd.PersistentFlags().StringVarP(&image, "image", "i", "", "fink-broker image name")
 	runCmd.PersistentFlags().BoolVarP(&noscience, "noscience", "n", false, "Disable execution of science modules, can be overridden by exporting environment variable NOSCIENCE=true")
-	viper.BindPFlag("spark.image", runCmd.PersistentFlags().Lookup("image"))
-	viper.BindPFlag("minimal", runCmd.PersistentFlags().Lookup("minimal"))
+
+	// FIXME validate support for env variable fo noscience?
 	viper.BindPFlag("noscience", runCmd.PersistentFlags().Lookup("noscience"))
 	viper.AutomaticEnv()
-
 }
 
 func getSparkConfig(task string) SparkConfig {
 
-	var c SparkConfig
+	var sc SparkConfig
 
-	if err := viper.UnmarshalKey(RUN, &c); err != nil {
+	if err := viper.UnmarshalKey(RUN, &sc); err != nil {
 		logger.Fatalf("Error while getting spark configuration: %v", err)
 	}
 
+	if viper.GetString(task+".cpu") != "" {
+		sc.Cpus = viper.GetString(task + ".cpu")
+	}
+	if viper.GetString(task+".memory") != "" {
+		sc.Memory = viper.GetString(task + ".memory")
+	}
+	if viper.GetString(task+".instances") != "" {
+		sc.Instances = viper.GetString(task + ".instances")
+	}
+
 	if task == DISTRIBUTION {
-		c.Binary = DISTRIBUTION_BIN
+		sc.Binary = DISTRIBUTION_BIN
 		var err error
-		c.LocalTmpDirectory, err = os.MkdirTemp(os.TempDir(), tmp_path_prefix)
+		sc.LocalTmpDirectory, err = os.MkdirTemp(os.TempDir(), tmp_path_prefix)
 		// Create a temporary file for kafka authentication
 		if err != nil {
 			log.Fatal(err)
 		}
-		c.PodTemplateFile = path.Join(c.LocalTmpDirectory, resources.ExecutorPodTemplateFile)
+		sc.PodTemplateFile = path.Join(sc.LocalTmpDirectory, resources.ExecutorPodTemplateFile)
 	} else {
-		c.Binary = fmt.Sprintf("%s.py", task)
+		sc.Binary = fmt.Sprintf("%s.py", task)
 	}
 
 	_, config := setKubeClient()
 	apiServerUrl := config.Host
-	c.ApiServerUrl = apiServerUrl
+	sc.ApiServerUrl = apiServerUrl
 
-	if c.OnlineDataPrefix == "" {
-		c.StorageClass = s3
+	if sc.OnlineDataPrefix == "" {
+		sc.StorageClass = s3
 	}
 
-	// FIXME UnmarshalKey() does not seems to support correctly nested key management
-	c.Image = viper.GetString("spark.image")
-
-	return c
+	if image != "" {
+		sc.Image = image
+	}
+	return sc
 }
 
 func generateSparkCmd(task string) (string, SparkConfig) {
@@ -127,7 +135,6 @@ org.apache.hadoop:hadoop-aws:3.2.3`
 	// TODO check https://docs.cloudera.com/cdp-private-cloud-base/7.1.8/ozone-storing-data/topics/ozone-config-spark-s3a.html
 	cmdTpl := fmt.Sprintf(`spark-submit --master "k8s://{{ .ApiServerUrl }}" \
     --deploy-mode cluster \
-    --conf spark.executor.instances=1 \
     --conf spark.kubernetes.namespace=%s \
     --conf spark.kubernetes.authenticate.driver.serviceAccountName=spark \
     --conf spark.kubernetes.container.image="{{ .Image }}" \
@@ -157,12 +164,21 @@ org.apache.hadoop:hadoop-aws:3.2.3`
 		cmdTpl += kafkaOptTpl
 	}
 
-	if minimal {
-		cmdTpl += `--conf spark.kubernetes.driver.request.cores=0 \
-    --conf spark.kubernetes.executor.request.cores=0 \
-    --conf spark.driver.memory=466m \
-    --conf spark.executor.memory=466m \
-    `
+	if sc.Instances != "" {
+		cmdTpl += fmt.Sprintf(`--conf spark.executor.instances=%[1]s \
+	`, sc.Instances)
+	}
+
+	if sc.Memory != "" {
+		cmdTpl += fmt.Sprintf(`--conf spark.driver.memory=%[1]s \
+    --conf spark.executor.memory=%[1]s \
+    `, sc.Memory)
+	}
+
+	if sc.Cpus != "" {
+		cmdTpl += fmt.Sprintf(`--conf spark.kubernetes.driver.request.cores=%[1]s \
+    --conf spark.kubernetes.executor.request.cores=%[1]s \
+    `, sc.Cpus)
 	}
 	cmdTpl += `local:///home/fink/fink-broker/bin/{{ .Binary }} \
     -log_level "{{ .LogLevel }}" \

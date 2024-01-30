@@ -24,7 +24,6 @@ func initConfig() {
 		viper.AddConfigPath(cwd)
 
 		finkConfigPath = path.Join(home, ".finkctl")
-
 	}
 
 	viper.AddConfigPath(finkConfigPath)
@@ -58,12 +57,16 @@ func logConfiguration() {
 }
 
 // getKafkaTopics returns the list of Kafka topics produced by fink-broker
-func getFinkTopics() []string {
-	topics := []string{}
-	for _, t := range getKafkaTopics() {
+func getFinkTopics() ([]string, error) {
+	finkTopics := []string{}
+	topics, err := getKafkaTopics()
+	if err != nil {
+		return nil, err
+	}
+	for _, t := range topics {
 		if strings.HasPrefix(t, finkPrefix) {
-			topics = append(topics, t)
+			finkTopics = append(finkTopics, t)
 		}
 	}
-	return topics
+	return finkTopics, nil
 }
