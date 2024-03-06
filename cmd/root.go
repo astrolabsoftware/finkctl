@@ -17,9 +17,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package cmd
 
 import (
-	"encoding/json"
 	"os"
 
+	"github.com/astrolabsoftware/finkctl/v3/cmd/log"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -67,36 +67,5 @@ func init() {
 
 // setUpLogs set the log output ans the log level
 func initLogger() {
-	var loglevelStr string
-	if verbosity == 0 {
-		loglevelStr = "error"
-	} else if verbosity == 1 {
-		loglevelStr = "info"
-	} else {
-		loglevelStr = "debug"
-	}
-
-	rawJSON := []byte(`{
-		"level": "` + loglevelStr + `",
-		"encoding": "console",
-		"outputPaths": ["stdout", "/tmp/logs"],
-		"errorOutputPaths": ["stderr"],
-		"encoderConfig": {
-		  "messageKey": "message",
-		  "levelKey": "level",
-		  "levelEncoder": "lowercase"
-		}
-	  }`)
-
-	var cfg zap.Config
-	if err := json.Unmarshal(rawJSON, &cfg); err != nil {
-		panic(err)
-	}
-	_logger, err := cfg.Build()
-	if err != nil {
-		panic(err)
-	}
-	defer _logger.Sync()
-	logger = _logger.Sugar()
-
+	log.Init(verbosity)
 }

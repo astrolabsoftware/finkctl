@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"time"
 
 	"github.com/astrolabsoftware/finkctl/v3/resources"
 	"github.com/spf13/cobra"
@@ -16,6 +17,7 @@ import (
 
 var noscience bool
 var image string
+var night string
 
 type storageClass int
 
@@ -62,12 +64,17 @@ type SparkConfig struct {
 func init() {
 	rootCmd.AddCommand(runCmd)
 
-	runCmd.PersistentFlags().StringVarP(&image, "image", "i", "", "fink-broker image name")
+	YYYYMMDD := "20240102"
+
+	now := time.Now().UTC()
+	defaultNight := now.Format(YYYYMMDD)
+
+	runCmd.PersistentFlags().StringVarP(&night, "night", "n", defaultNight, "Night to process, format YYYYMMDD, default is today, used in finkctl.yaml as {{.Night}} template")
+	runCmd.PersistentFlags().StringVarP(&image, "image", "i", "", "fink-broker image name, used in finkctl.yaml as {{.Image}} template")
 	runCmd.PersistentFlags().BoolVarP(&noscience, "noscience", "n", false, "Disable execution of science modules, can be overridden by exporting environment variable NOSCIENCE=true")
 
 	// FIXME validate support for env variable fo noscience?
 	viper.BindPFlag("noscience", runCmd.PersistentFlags().Lookup("noscience"))
-	viper.AutomaticEnv()
 }
 
 func getSparkConfig(task string) SparkConfig {

@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"log/slog"
 	"os"
 	"path"
 	"strings"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -51,9 +53,10 @@ func logConfiguration() {
 	c := viper.AllSettings()
 	bs, err := yaml.Marshal(c)
 	if err != nil {
-		logger.Fatalf("unable to marshal finkctl configuration to YAML: %v", err)
+		slog.Error("unable to marshal finkctl configuration to YAML", "error", err)
+		syscall.Exit(1)
 	}
-	logger.Infof("Current finkctl configuration:\n%s", bs)
+	slog.Info("Current finkctl configuration", "data", bs)
 }
 
 // getKafkaTopics returns the list of Kafka topics produced by fink-broker

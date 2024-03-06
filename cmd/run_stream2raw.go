@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"log"
+	"log/slog"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -34,7 +35,7 @@ and writes it to a shared file system for further processing and analysis.`,
 
 		startMsg := "Launch stream2raw service"
 		logConfiguration()
-		logger.Info(startMsg)
+		slog.Info(startMsg)
 		sparkCmd, _ := generateSparkCmd(STREAM2RAW)
 
 		cmdTpl := sparkCmd + `-servers "{{ .KafkaSocket }}" \

@@ -18,9 +18,9 @@ stream2raw:
   fink_alert_schema: /home/fink/fink-alert-schemas/ztf/ztf_public_20190903.schema.avro
   kafka_socket: kafka-cluster-kafka-bootstrap.kafka:9092
   kafka_starting_offset: earliest
-  kafka_topic: ztf-stream-sim
+  kafka_topic: ztf-stream-{{.Night}}
 raw2science:
-  night: "20200101"
+  night: {{.Night}}
   memory: 3Gi
 distribution:
   cpu: 2
