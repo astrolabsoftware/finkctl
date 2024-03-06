@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/spf13/cobra"
 )
@@ -24,13 +25,13 @@ to quickly create a Cobra application.`,
 		logConfiguration()
 		fmt.Println("Create S3 bucket for Fink broker")
 		c := getS3Config()
-		logger.Debugf("S3 endpoint: %s, bucket name: %s", c.Endpoint, c.BucketName)
+		slog.Debug("S3", "endpoint", c.Endpoint, "bucketName", c.BucketName)
 		mc := setMinioClient(c)
 		listBucket(mc)
 		if !bucketExists(mc, c.BucketName) {
 			makeBucket(mc, c.BucketName)
 		} else {
-			logger.Warnf("Bucket exists: %s", c.BucketName)
+			slog.Warn("Bucket exists", "bucketName", c.BucketName)
 		}
 	},
 }

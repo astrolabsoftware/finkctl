@@ -4,6 +4,9 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"log/slog"
+	"syscall"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -49,7 +52,8 @@ func getS3Config() S3Config {
 	var c S3Config
 
 	if err := viper.UnmarshalKey(S3, &c); err != nil {
-		logger.Fatalf("Error while getting %s configuration: %v", S3, err)
+		slog.Error("Error while getting configuration", "task", S3, "error", err)
+		syscall.Exit(1)
 	}
 
 	// FIXME UnmarshalKey() does not seems to support correctly nested key management

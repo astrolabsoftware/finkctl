@@ -6,6 +6,7 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"path"
 	"time"
@@ -82,7 +83,7 @@ func getSparkConfig(task string) SparkConfig {
 	var sc SparkConfig
 
 	if err := viper.UnmarshalKey(RUN, &sc); err != nil {
-		logger.Fatalf("Error while getting spark configuration: %v", err)
+		slog.Error("Error while getting spark configuration", "task", task, "error", err)
 	}
 
 	if viper.GetString(task+".cpu") != "" {

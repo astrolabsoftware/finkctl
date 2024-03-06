@@ -6,7 +6,9 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"log/slog"
 	"os"
+	"syscall"
 
 	"github.com/astrolabsoftware/finkctl/v3/resources"
 	"github.com/spf13/cobra"
@@ -41,7 +43,7 @@ var distributionCmd = &cobra.Command{
   finkctl spark --image=<image> distribution`,
 	Run: func(cmd *cobra.Command, args []string) {
 		startMsg := "Launch distribution service"
-		logger.Info(startMsg)
+		slog.Info(startMsg)
 
 		c := getDistributionConfig()
 		sparkCmd, sc := generateSparkCmd(DISTRIBUTION)
@@ -64,10 +66,11 @@ var distributionCmd = &cobra.Command{
 func createExecutorPodTemplate(filename string) {
 	c := getKubeVars()
 	kafkaJaasConf := format(resources.ExecutorPodTemplate, &c)
-	logger.Debugf("Writing PodTemplate to file: %s", filename)
+	slog.Debug("Writing PodTemplate", "destFile", filename)
 	executorPodTemplateFile, err := os.Create(filename)
 	if err != nil {
-		logger.Fatal(err)
+		slog.Error("Error while creating executor pod template file", "error", err)
+		syscall.Exit(1)
 	}
 	defer executorPodTemplateFile.Close()
 
@@ -93,7 +96,7 @@ func getDistributionConfig() DistributionConfig {
 	var c DistributionConfig
 
 	if err := viper.UnmarshalKey(DISTRIBUTION, &c); err != nil {
-		logger.Fatalf("Error while getting %s configuration: %v", DISTRIBUTION, err)
+		slog.Error("Error while getting configuration", "task", DISTRIBUTION, "error", err)
 	}
 	if c.DistributionServers == "" {
 		c.DistributionServers = viper.GetString("stream2raw.kafka_socket")

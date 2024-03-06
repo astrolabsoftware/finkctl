@@ -19,14 +19,12 @@ package cmd
 import (
 	"os"
 
-	"github.com/astrolabsoftware/finkctl/v3/cmd/log"
+	"github.com/astrolabsoftware/finkctl/v3/log"
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 )
 
 var (
 	dryRun    bool
-	logger    *zap.SugaredLogger
 	verbosity int
 )
 

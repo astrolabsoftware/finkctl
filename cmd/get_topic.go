@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -16,7 +17,7 @@ var getTopicCmd = &cobra.Command{
 	Aliases: []string{"to", "topics"},
 	Short:   "List kafka topics produced by the fink-broker",
 	Run: func(cmd *cobra.Command, args []string) {
-		logger.Info("List kafka topics produced by the fink-broker")
+		slog.Info("List kafka topics produced by the fink-broker")
 		topics, err := getFinkTopics()
 		cobra.CheckErr(err)
 		if len(topics) == 0 {
