@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"log/slog"
 	"os"
 	"path"
 	"strings"
+	"syscall"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -33,17 +35,19 @@ func initConfig() {
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		logger.Debugf("Use config file: %s", viper.ConfigFileUsed())
+		slog.Debug("Use config", "file", viper.ConfigFileUsed())
 	} else {
-		logger.Fatalf("Fail reading configuration files in $FINKCONFIG, $HOME/.fink, then $CWD: ", err, viper.ConfigFileUsed())
+		slog.Error("Fail reading configuration files in $FINKCONFIG, $HOME/.fink, then $CWD", "error", err, "config_file_used", viper.ConfigFileUsed())
+		syscall.Exit(1)
 	}
 
 	viper.SetConfigName("finkctl.secret.yaml")
 
 	if err := viper.MergeInConfig(); err == nil {
-		logger.Debugf("Use secret file: %s", viper.ConfigFileUsed())
+		slog.Debug("Use secret", "file", viper.ConfigFileUsed())
 	} else {
-		logger.Fatalf("Fail reading secret files in $FINKCONFIG, $HOME/.fink, then $CWD: ", err, viper.ConfigFileUsed())
+		slog.Error("Fail reading secret files in $FINKCONFIG, $HOME/.fink, then $CWD", "error", err, "config_file_used", viper.ConfigFileUsed())
+		syscall.Exit(1)
 	}
 }
 
@@ -51,9 +55,10 @@ func logConfiguration() {
 	c := viper.AllSettings()
 	bs, err := yaml.Marshal(c)
 	if err != nil {
-		logger.Fatalf("unable to marshal finkctl configuration to YAML: %v", err)
+		slog.Error("unable to marshal finkctl configuration to YAML", "error", err)
+		syscall.Exit(1)
 	}
-	logger.Infof("Current finkctl configuration:\n%s", bs)
+	slog.Info("Current finkctl configuration", "data", bs)
 }
 
 // getKafkaTopics returns the list of Kafka topics produced by fink-broker
@@ -69,4 +74,13 @@ func getFinkTopics() ([]string, error) {
 		}
 	}
 	return finkTopics, nil
+}
+
+// applyVarTemplate use a template to generate a configuration value
+// and example template is: "xxxx-{{ .Night }}-yyyy"
+func applyVarTemplate(template string, night string) string {
+	type TmplData struct {
+		Night string
+	}
+	return format(template, &TmplData{Night: night})
 }

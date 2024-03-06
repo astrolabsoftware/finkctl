@@ -5,6 +5,9 @@ on:
   pull_request:
     branches:
       - main
+env:
+  CIUXCONFIG: /tmp/ciux.sh
+  CIUX_VERSION: v0.0.2-rc1
 jobs:
   e2e:
     name: e2e tests
@@ -15,9 +18,16 @@ jobs:
           go-version: '^1.21.4'
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Install ciux
+        run: go install github.com/k8s-school/ciux@"${{ env.CIUX_VERSION }}"
       - name: Build finkctl
         run: |
           go install .
-      - name: Run raw2science test
+      - name: Ciux project ignition
         run: |
-          ./_e2e/raw2science.sh
+          ciux ignite --selector ci $PWD
+      - name: Run e2e test
+        run: |
+          ./_e2e/e2e.sh

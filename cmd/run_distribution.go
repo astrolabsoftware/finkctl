@@ -6,7 +6,9 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"log/slog"
 	"os"
+	"syscall"
 
 	"github.com/astrolabsoftware/finkctl/v3/resources"
 	"github.com/spf13/cobra"
@@ -22,12 +24,12 @@ type KafkaCreds struct {
 }
 
 type DistributionConfig struct {
-	Cpu                 string     `mapstructure:"cpu"`
-	DistributionServers string     `mapstructure:"distribution_servers"`
-	Memory              string     `mapstructure:"memory"`
-	SubstreamPrefix     string     `mapstructure:"substream_prefix"`
-	DistributionSchema  string     `mapstructure:"distribution_schema"`
-	Night               string     `mapstructure:"night"`
+	Cpu                 string `mapstructure:"cpu"`
+	DistributionServers string `mapstructure:"distribution_servers"`
+	Memory              string `mapstructure:"memory"`
+	SubstreamPrefix     string `mapstructure:"substream_prefix"`
+	DistributionSchema  string `mapstructure:"distribution_schema"`
+	Night               string
 	KafkaCreds          KafkaCreds `mapstructure:"kafka"`
 }
 
@@ -41,20 +43,23 @@ var distributionCmd = &cobra.Command{
   finkctl spark --image=<image> distribution`,
 	Run: func(cmd *cobra.Command, args []string) {
 		startMsg := "Launch distribution service"
-		logger.Info(startMsg)
+		slog.Info(startMsg)
 
-		c := getDistributionConfig()
-		sparkCmd, sc := generateSparkCmd(DISTRIBUTION)
+		sparkCmd, rc := generateSparkCmd(DISTRIBUTION)
+		c := getDistributionConfig(rc.Night)
 
 		cmdTpl := sparkCmd + `-distribution_servers "{{ .DistributionServers }}" \
     -distribution_schema "{{ .DistributionSchema }}" \
     -substream_prefix "{{ .SubstreamPrefix }}" \
     -night "{{ .Night }}"`
 
-		createExecutorPodTemplate(sc.PodTemplateFile)
+		createExecutorPodTemplate(rc.PodTemplateFile)
 
-		createKafkaJaasConfigMap(&c)
-
+		if dryRun {
+			slog.Warn("Dry-run mode enabled, not creating KafkaJaasConfigMap")
+		} else {
+			createKafkaJaasConfigMap(&c)
+		}
 		sparkCmd = format(cmdTpl, &c)
 
 		ExecCmd(sparkCmd)
@@ -64,10 +69,11 @@ var distributionCmd = &cobra.Command{
 func createExecutorPodTemplate(filename string) {
 	c := getKubeVars()
 	kafkaJaasConf := format(resources.ExecutorPodTemplate, &c)
-	logger.Debugf("Writing PodTemplate to file: %s", filename)
+	slog.Debug("Writing PodTemplate", "destFile", filename)
 	executorPodTemplateFile, err := os.Create(filename)
 	if err != nil {
-		logger.Fatal(err)
+		slog.Error("Error while creating executor pod template file", "error", err)
+		syscall.Exit(1)
 	}
 	defer executorPodTemplateFile.Close()
 
@@ -89,18 +95,16 @@ func init() {
 	// distributionCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-func getDistributionConfig() DistributionConfig {
+func getDistributionConfig(night string) DistributionConfig {
 	var c DistributionConfig
 
 	if err := viper.UnmarshalKey(DISTRIBUTION, &c); err != nil {
-		logger.Fatalf("Error while getting %s configuration: %v", DISTRIBUTION, err)
+		slog.Error("Error while getting configuration", "task", DISTRIBUTION, "error", err)
 	}
 	if c.DistributionServers == "" {
 		c.DistributionServers = viper.GetString("stream2raw.kafka_socket")
 	}
-	if c.Night == "" {
-		c.Night = viper.GetString("raw2science.night")
-	}
+	c.Night = night
 	if c.KafkaCreds.Password == "" {
 		c.KafkaCreds.Password = getKafkaPasswordFromSecret()
 	}

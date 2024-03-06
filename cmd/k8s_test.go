@@ -24,7 +24,6 @@ func TestGetCurrentNamespace(t *testing.T) {
 func TestGetKafkaPasswordFromSecret(t *testing.T) {
 	secret := getKafkaPasswordFromSecret()
 	// TODO Check against the kubectl cli equivalent
-	t.Logf("XXXXX : %s", secret)
 	assert.Equal(t, secret, "TODO")
 }
 

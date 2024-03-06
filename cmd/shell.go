@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 	"text/template"
 )
 
@@ -16,7 +18,7 @@ func ExecCmd(command string) (string, string) {
 
 	var stdoutBuf, stderrBuf bytes.Buffer
 	if !dryRun {
-		logger.Infof("Launch command: %v", command)
+		slog.Info("Run", "command", command)
 		cmd := exec.Command(ShellToUse, "-c", command)
 
 		cmd.Stdout = io.MultiWriter(os.Stdout, &stdoutBuf)
@@ -24,13 +26,14 @@ func ExecCmd(command string) (string, string) {
 
 		err := cmd.Run()
 		if err != nil {
-			logger.Fatalf("cmd.Run() failed with %s\n", err)
+			slog.Error("cmd.Run() failed", "error", err)
+			syscall.Exit(1)
 		}
-		logger.Infof("%v", stdoutBuf)
-		logger.Infof("%v", stderrBuf)
+		slog.Info("stdout", "buffer", stdoutBuf)
+		slog.Info("stderr", "buffer", stderrBuf)
 
 	} else {
-		logger.Info("Dry run")
+		slog.Info("Dry run")
 		fmt.Println(command)
 	}
 	return stdoutBuf.String(), stderrBuf.String()
@@ -40,7 +43,8 @@ func format(s string, v interface{}) string {
 	t, b := new(template.Template), new(strings.Builder)
 	err := template.Must(t.Parse(s)).Execute(b, v)
 	if err != nil {
-		logger.Fatalf("Error while formatting string %s: %v", s, err)
+		slog.Error("Error while formatting string", "string", s, "error", err)
+		syscall.Exit(1)
 	}
 	return b.String()
 }

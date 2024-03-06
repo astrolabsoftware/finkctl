@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -22,13 +23,13 @@ var waitTaskCmd = &cobra.Command{
 		clientSet, _ := setKubeClient()
 		for _, value := range labelValues {
 			selector := "spark-role=" + value
-			logger.Infof("Wait for fink-broker pods with label '%s' to be created", selector)
+			slog.Info("Wait for fink-broker pods to be launched", "selector", selector)
 			err := waitForPodExistsBySelector(clientSet, getCurrentNamespace(), selector, timeout, expected_pods)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "error: timed out waiting for %s pods to be created, reason: %s\n", value, err)
 				os.Exit(1)
 			}
-			logger.Infof("Wait for fink-broker pods with label '%s' to be ready", selector)
+			slog.Info("Wait for fink-broker pods to be ready", "selector", selector)
 			err = waitForPodReadyBySelector(clientSet, getCurrentNamespace(), selector, timeout)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "error: timed out waiting for %s pods to be ready, reason: %s\n", value, err)
