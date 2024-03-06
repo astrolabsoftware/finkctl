@@ -19,6 +19,7 @@ import (
 var noscience bool
 var image string
 var night string
+var tonight bool
 
 type storageClass int
 
@@ -45,12 +46,13 @@ var runCmd = &cobra.Command{
 	},
 }
 
-type SparkConfig struct {
+type RunConfig struct {
 	ApiServerUrl      string
 	Binary            string
 	Cpus              string `mapstructure:"cpus"`
 	Image             string `mapstructure:"image"`
 	Instances         string `mapstructure:"instances"`
+	Night             string `mapstructure:"night"`
 	Producer          string `mapstructure:"producer"`
 	OnlineDataPrefix  string `mapstructure:"online_data_prefix"`
 	Packages          string
@@ -65,74 +67,90 @@ type SparkConfig struct {
 func init() {
 	rootCmd.AddCommand(runCmd)
 
-	YYYYMMDD := "20240102"
-
-	now := time.Now().UTC()
-	defaultNight := now.Format(YYYYMMDD)
-
-	runCmd.PersistentFlags().StringVarP(&night, "night", "n", defaultNight, "Night to process, format YYYYMMDD, default is today, used in finkctl.yaml as {{.Night}} template")
+	runCmd.PersistentFlags().StringVarP(&night, "night", "N", "", "Night to process, format YYYYMMDD, default is empty string, used in finkctl.yaml as {{.Night}} template")
 	runCmd.PersistentFlags().StringVarP(&image, "image", "i", "", "fink-broker image name, used in finkctl.yaml as {{.Image}} template")
 	runCmd.PersistentFlags().BoolVarP(&noscience, "noscience", "n", false, "Disable execution of science modules, can be overridden by exporting environment variable NOSCIENCE=true")
+	runCmd.PersistentFlags().BoolVarP(&tonight, "tonight", "t", false, "Use tonight's date as night, format YYYYMMDD, used in finkctl.yaml as {{.Night}} template, supersed night flag")
 
 	// FIXME validate support for env variable fo noscience?
 	viper.BindPFlag("noscience", runCmd.PersistentFlags().Lookup("noscience"))
 }
 
-func getSparkConfig(task string) SparkConfig {
+func getRunConfig(task string) RunConfig {
 
-	var sc SparkConfig
+	var rc RunConfig
 
-	if err := viper.UnmarshalKey(RUN, &sc); err != nil {
+	if err := viper.UnmarshalKey(RUN, &rc); err != nil {
 		slog.Error("Error while getting spark configuration", "task", task, "error", err)
 	}
 
 	if viper.GetString(task+".cpu") != "" {
-		sc.Cpus = viper.GetString(task + ".cpu")
+		rc.Cpus = viper.GetString(task + ".cpu")
 	}
 	if viper.GetString(task+".memory") != "" {
-		sc.Memory = viper.GetString(task + ".memory")
+		rc.Memory = viper.GetString(task + ".memory")
 	}
 	if viper.GetString(task+".instances") != "" {
-		sc.Instances = viper.GetString(task + ".instances")
+		rc.Instances = viper.GetString(task + ".instances")
 	}
 
 	if task == DISTRIBUTION {
-		sc.Binary = DISTRIBUTION_BIN
+		rc.Binary = DISTRIBUTION_BIN
 		var err error
-		sc.LocalTmpDirectory, err = os.MkdirTemp(os.TempDir(), tmp_path_prefix)
+		rc.LocalTmpDirectory, err = os.MkdirTemp(os.TempDir(), tmp_path_prefix)
 		// Create a temporary file for kafka authentication
 		if err != nil {
 			log.Fatal(err)
 		}
-		sc.PodTemplateFile = path.Join(sc.LocalTmpDirectory, resources.ExecutorPodTemplateFile)
+		rc.PodTemplateFile = path.Join(rc.LocalTmpDirectory, resources.ExecutorPodTemplateFile)
 	} else {
-		sc.Binary = fmt.Sprintf("%s.py", task)
+		rc.Binary = fmt.Sprintf("%s.py", task)
 	}
 
 	_, config := setKubeClient()
 	apiServerUrl := config.Host
-	sc.ApiServerUrl = apiServerUrl
+	rc.ApiServerUrl = apiServerUrl
 
-	if sc.OnlineDataPrefix == "" {
-		sc.StorageClass = s3
+	if rc.OnlineDataPrefix == "" {
+		rc.StorageClass = s3
 	}
 
 	if image != "" {
-		sc.Image = image
+		rc.Image = image
 	}
-	return sc
+
+	YYYYMMDD := "20060102"
+	if tonight {
+		now := time.Now().UTC()
+		tonight := now.Format(YYYYMMDD)
+		rc.Night = tonight
+	} else if night != "" {
+		rc.Night = night
+	}
+	if rc.Night == "" {
+		err := fmt.Errorf("night is empty, please provide a night")
+		slog.Error("Error while getting spark configuration", "task", task, "error", err)
+		os.Exit(1)
+	}
+	_, err1 := time.Parse(YYYYMMDD, rc.Night)
+	if err1 != nil {
+		err := fmt.Errorf("night has not the right format, please provide a night in the format YYYYMMDD")
+		slog.Error("Error while getting spark configuration", "task", task, "error", err)
+		os.Exit(1)
+	}
+	return rc
 }
 
-func generateSparkCmd(task string) (string, SparkConfig) {
-	sc := getSparkConfig(task)
+func generateSparkCmd(task string) (string, RunConfig) {
+	sc := getRunConfig(task)
 	return applyTemplate(sc, task), sc
 }
 
-func applyTemplate(sc SparkConfig, task string) string {
+func applyTemplate(rc RunConfig, task string) string {
 
 	// WARNING package are not deployed in spark-executor
 	// see https://stackoverflow.com/a/67299668/2784039
-	sc.Packages = `org.apache.spark:spark-streaming-kafka-0-10-assembly_2.12:3.2.3,\
+	rc.Packages = `org.apache.spark:spark-streaming-kafka-0-10-assembly_2.12:3.2.3,\
 org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.3,\
 org.apache.spark:spark-avro_2.12:3.2.3,\
 org.apache.spark:spark-token-provider-kafka-0-10_2.12:3.2.3,\
@@ -149,9 +167,9 @@ org.apache.hadoop:hadoop-aws:3.2.3`
     --conf spark.driver.extraJavaOptions="-Divy.cache.dir=/tmp -Divy.home=/tmp" \
     `, getCurrentNamespace())
 
-	if sc.StorageClass == s3 {
+	if rc.StorageClass == s3 {
 		s3c := getS3Config()
-		sc.OnlineDataPrefix = fmt.Sprintf("s3a://%s", s3c.BucketName)
+		rc.OnlineDataPrefix = fmt.Sprintf("s3a://%s", s3c.BucketName)
 		s3OptTpl := `--conf spark.hadoop.fs.s3a.endpoint={{ .Endpoint }} \
     --conf spark.hadoop.fs.s3a.access.key="{{ .AccessKeyID }}" \
     --conf spark.hadoop.fs.s3a.secret.key="{{ .SecretAccessKey }}" \
@@ -171,22 +189,22 @@ org.apache.hadoop:hadoop-aws:3.2.3`
     `, configMapPathKafkaJaas, resources.KafkaJaasConfFile)
 		cmdTpl += kafkaOptTpl
 	}
-
-	if sc.Instances != "" {
+	// TODO make it configurable at the task level using {{ .InstancesOption }}
+	if rc.Instances != "" {
 		cmdTpl += fmt.Sprintf(`--conf spark.executor.instances=%[1]s \
-	`, sc.Instances)
+	`, rc.Instances)
 	}
-
-	if sc.Memory != "" {
+	// TODO make it configurable at the task level
+	if rc.Memory != "" {
 		cmdTpl += fmt.Sprintf(`--conf spark.driver.memory=%[1]s \
     --conf spark.executor.memory=%[1]s \
-    `, sc.Memory)
+    `, rc.Memory)
 	}
-
-	if sc.Cpus != "" {
+	// TODO make it configurable at the task level
+	if rc.Cpus != "" {
 		cmdTpl += fmt.Sprintf(`--conf spark.kubernetes.driver.request.cores=%[1]s \
     --conf spark.kubernetes.executor.request.cores=%[1]s \
-    `, sc.Cpus)
+    `, rc.Cpus)
 	}
 	cmdTpl += `local:///home/fink/fink-broker/bin/{{ .Binary }} \
     -log_level "{{ .LogLevel }}" \
@@ -198,6 +216,6 @@ org.apache.hadoop:hadoop-aws:3.2.3`
 		cmdTpl += `--noscience \
     `
 	}
-	cmd := format(cmdTpl, &sc)
+	cmd := format(cmdTpl, &rc)
 	return cmd
 }

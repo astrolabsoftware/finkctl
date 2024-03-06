@@ -24,12 +24,12 @@ type KafkaCreds struct {
 }
 
 type DistributionConfig struct {
-	Cpu                 string     `mapstructure:"cpu"`
-	DistributionServers string     `mapstructure:"distribution_servers"`
-	Memory              string     `mapstructure:"memory"`
-	SubstreamPrefix     string     `mapstructure:"substream_prefix"`
-	DistributionSchema  string     `mapstructure:"distribution_schema"`
-	Night               string     `mapstructure:"night"`
+	Cpu                 string `mapstructure:"cpu"`
+	DistributionServers string `mapstructure:"distribution_servers"`
+	Memory              string `mapstructure:"memory"`
+	SubstreamPrefix     string `mapstructure:"substream_prefix"`
+	DistributionSchema  string `mapstructure:"distribution_schema"`
+	Night               string
 	KafkaCreds          KafkaCreds `mapstructure:"kafka"`
 }
 
@@ -45,15 +45,15 @@ var distributionCmd = &cobra.Command{
 		startMsg := "Launch distribution service"
 		slog.Info(startMsg)
 
-		c := getDistributionConfig()
-		sparkCmd, sc := generateSparkCmd(DISTRIBUTION)
+		sparkCmd, rc := generateSparkCmd(DISTRIBUTION)
+		c := getDistributionConfig(rc.Night)
 
 		cmdTpl := sparkCmd + `-distribution_servers "{{ .DistributionServers }}" \
     -distribution_schema "{{ .DistributionSchema }}" \
     -substream_prefix "{{ .SubstreamPrefix }}" \
     -night "{{ .Night }}"`
 
-		createExecutorPodTemplate(sc.PodTemplateFile)
+		createExecutorPodTemplate(rc.PodTemplateFile)
 
 		createKafkaJaasConfigMap(&c)
 
@@ -92,7 +92,7 @@ func init() {
 	// distributionCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-func getDistributionConfig() DistributionConfig {
+func getDistributionConfig(night string) DistributionConfig {
 	var c DistributionConfig
 
 	if err := viper.UnmarshalKey(DISTRIBUTION, &c); err != nil {
@@ -101,9 +101,7 @@ func getDistributionConfig() DistributionConfig {
 	if c.DistributionServers == "" {
 		c.DistributionServers = viper.GetString("stream2raw.kafka_socket")
 	}
-	if c.Night == "" {
-		c.Night = viper.GetString("raw2science.night")
-	}
+	c.Night = night
 	if c.KafkaCreds.Password == "" {
 		c.KafkaCreds.Password = getKafkaPasswordFromSecret()
 	}

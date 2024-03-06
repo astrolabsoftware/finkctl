@@ -10,7 +10,7 @@ import (
 )
 
 func TestGetSparkCmd(t *testing.T) {
-	sc := SparkConfig{
+	sc := RunConfig{
 		Image:             "gitlab-registry.in2p3.fr/astrolabsoftware/fink/fink-broker:testtag",
 		Producer:          "sims",
 		OnlineDataPrefix:  "/home/fink/fink-broker/online",
@@ -96,7 +96,7 @@ func TestGetSparkConfig(t *testing.T) {
 
 	t.Logf("Viper config: %v", viper.AllSettings())
 
-	sc := getSparkConfig(DISTRIBUTION)
+	sc := getRunConfig(DISTRIBUTION)
 
 	if sc.Cpus != "4" {
 		t.Errorf("Expected CPU to be '4', but got '%s'", sc.Cpus)

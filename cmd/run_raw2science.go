@@ -13,7 +13,7 @@ import (
 const RAW2SCIENCE string = "raw2science"
 
 type Raw2ScienceConfig struct {
-	Night string `mapstructure:"night"`
+	Night string
 }
 
 // raw2scienceCmd represents the raw2science command
@@ -31,10 +31,10 @@ shared file system and send it to Kafka streams.`,
 
 		slog.Info("Launch raw2science service")
 
-		sparkCmd, _ := generateSparkCmd(RAW2SCIENCE)
+		sparkCmd, rc := generateSparkCmd(RAW2SCIENCE)
 
 		cmdTpl := sparkCmd + `-night "{{ .Night }}"`
-		c := getRaw2ScienceConfig()
+		c := getRaw2ScienceConfig(rc.Night)
 		sparkCmd = format(cmdTpl, &c)
 		ExecCmd(sparkCmd)
 	},
@@ -54,11 +54,11 @@ func init() {
 	// raw2scienceCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-func getRaw2ScienceConfig() Raw2ScienceConfig {
+func getRaw2ScienceConfig(night string) Raw2ScienceConfig {
 	var c Raw2ScienceConfig
 	if err := viper.UnmarshalKey(RAW2SCIENCE, &c); err != nil {
 		slog.Error("Error while getting configuration", "task", RAW2SCIENCE, "error", err)
 	}
-
+	c.Night = night
 	return c
 }

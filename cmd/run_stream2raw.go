@@ -18,6 +18,7 @@ type Stream2RawConfig struct {
 	KafkaTopic          string `mapstructure:"kafka_topic"`
 	FinkAlertSchema     string `mapstructure:"fink_alert_schema"`
 	KafkaStartingOffset string `mapstructure:"kafka_starting_offset"`
+	Night               string
 }
 
 // stream2rawCmd represents the stream2raw command
@@ -36,13 +37,13 @@ and writes it to a shared file system for further processing and analysis.`,
 		startMsg := "Launch stream2raw service"
 		logConfiguration()
 		slog.Info(startMsg)
-		sparkCmd, _ := generateSparkCmd(STREAM2RAW)
+		sparkCmd, rc := generateSparkCmd(STREAM2RAW)
 
 		cmdTpl := sparkCmd + `-servers "{{ .KafkaSocket }}" \
     -schema "{{ .FinkAlertSchema }}" \
     -startingoffsets_stream "{{ .KafkaStartingOffset }}" \
     -topic "{{ .KafkaTopic }}"`
-		c := getStream2RawConfig()
+		c := getStream2RawConfig(rc.Night)
 		sparkCmd = format(cmdTpl, &c)
 
 		ExecCmd(sparkCmd)
@@ -64,11 +65,15 @@ func init() {
 	// stream2rawCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-func getStream2RawConfig() Stream2RawConfig {
+func getStream2RawConfig(night string) Stream2RawConfig {
 	var c Stream2RawConfig
 	if err := viper.UnmarshalKey(STREAM2RAW, &c); err != nil {
 		log.Fatalf("Error while getting %s configuration: %v", STREAM2RAW, err)
 	}
-
+	type TmplData struct {
+		Night string
+	}
+	// KafkaTopic might be the following template "xxxx-{{ .Night }}-yyyy"
+	c.KafkaTopic = format(c.KafkaTopic, &TmplData{Night: night})
 	return c
 }
