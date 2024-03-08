@@ -48,13 +48,15 @@ func init() {
 
 }
 
-func getS3Config() S3Config {
+func getS3Config(night string) S3Config {
 	var c S3Config
 
 	if err := viper.UnmarshalKey(S3, &c); err != nil {
 		slog.Error("Error while getting configuration", "task", S3, "error", err)
 		syscall.Exit(1)
 	}
+
+	c.BucketName = applyVarTemplate(c.BucketName, night)
 
 	// FIXME UnmarshalKey() does not seems to support correctly nested key management
 	c.Endpoint = viper.GetString("s3.endpoint")

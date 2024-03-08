@@ -19,7 +19,7 @@ spark-submit --master "k8s://https://127.0.0.1:34729" \
     --conf spark.kubernetes.executor.request.cores=1 \
     local:///home/fink/fink-broker/bin/stream2raw.py \
     -log_level "INFO" \
-    -online_data_prefix "s3a://fink-broker-online" \
+    -online_data_prefix "s3a://fink-broker-online-20000101" \
     -producer "sims" \
     -tinterval "2" \
     -servers "kafka-cluster-kafka-bootstrap.kafka:9092" \

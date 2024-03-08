@@ -70,10 +70,7 @@ func getStream2RawConfig(night string) Stream2RawConfig {
 	if err := viper.UnmarshalKey(STREAM2RAW, &c); err != nil {
 		log.Fatalf("Error while getting %s configuration: %v", STREAM2RAW, err)
 	}
-	type TmplData struct {
-		Night string
-	}
 	// KafkaTopic might be the following template "xxxx-{{ .Night }}-yyyy"
-	c.KafkaTopic = format(c.KafkaTopic, &TmplData{Night: night})
+	c.KafkaTopic = applyVarTemplate(c.KafkaTopic, night)
 	return c
 }

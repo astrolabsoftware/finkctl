@@ -75,3 +75,12 @@ func getFinkTopics() ([]string, error) {
 	}
 	return finkTopics, nil
 }
+
+// applyVarTemplate use a template to generate a configuration value
+// and example template is: "xxxx-{{ .Night }}-yyyy"
+func applyVarTemplate(template string, night string) string {
+	type TmplData struct {
+		Night string
+	}
+	return format(template, &TmplData{Night: night})
+}

@@ -15,16 +15,11 @@ var makeBucketCmd = &cobra.Command{
 	Use:     "makebucket",
 	Aliases: []string{"mb"},
 	Short:   "Create a S3 bucket used by Fink broker",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		logConfiguration()
 		fmt.Println("Create S3 bucket for Fink broker")
-		c := getS3Config()
+		rc := getRunConfig("")
+		c := getS3Config(rc.Night)
 		slog.Debug("S3", "endpoint", c.Endpoint, "bucketName", c.BucketName)
 		mc := setMinioClient(c)
 		listBucket(mc)

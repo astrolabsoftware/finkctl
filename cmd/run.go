@@ -84,7 +84,6 @@ func getRunConfig(task string) RunConfig {
 		slog.Error("Error while getting spark configuration", "task", task, "error", err)
 	}
 
-	slog.Debug("XXXXXXXXXXxxxx RunConfig", "config", rc)
 	if viper.GetString(task+".cpu") != "" {
 		rc.Cpus = viper.GetString(task + ".cpu")
 	}
@@ -169,7 +168,7 @@ org.apache.hadoop:hadoop-aws:3.2.3`
     `, getCurrentNamespace())
 
 	if rc.StorageClass == s3 {
-		s3c := getS3Config()
+		s3c := getS3Config(rc.Night)
 		rc.OnlineDataPrefix = fmt.Sprintf("s3a://%s", s3c.BucketName)
 		s3OptTpl := `--conf spark.hadoop.fs.s3a.endpoint={{ .Endpoint }} \
     --conf spark.hadoop.fs.s3a.access.key="{{ .AccessKeyID }}" \
@@ -191,7 +190,6 @@ org.apache.hadoop:hadoop-aws:3.2.3`
 		cmdTpl += kafkaOptTpl
 	}
 	// TODO make it configurable at the task level using {{ .InstancesOption }}
-	slog.Debug("XXXXXXXXXXXX Instances", "instances", rc.Instances)
 	if rc.Instances != "" {
 		cmdTpl += fmt.Sprintf(`--conf spark.executor.instances=%[1]s \
     `, rc.Instances)

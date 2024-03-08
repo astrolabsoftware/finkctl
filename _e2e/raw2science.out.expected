@@ -20,7 +20,7 @@ spark-submit --master "k8s://https://127.0.0.1:34729" \
     --conf spark.kubernetes.executor.request.cores=1 \
     local:///home/fink/fink-broker/bin/raw2science.py \
     -log_level "INFO" \
-    -online_data_prefix "s3a://fink-broker-online" \
+    -online_data_prefix "s3a://fink-broker-online-20000101" \
     -producer "sims" \
     -tinterval "2" \
     -night "20000101"
