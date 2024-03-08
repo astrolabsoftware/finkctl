@@ -33,10 +33,14 @@ then
     exit 1
 fi
 
+ink "Check stream2raw dry-run"
+finkctl run stream2raw --image=param_image -N 20000101 --dry-run > /tmp/stream2raw.out
+diff /tmp/stream2raw.out $DIR/stream2raw.out.expected
+
 ink "Check raw2science dry-run"
-finkctl run raw2science --image=param_image --dry-run -N 20000101 > /tmp/raw2science.out
+finkctl run raw2science --image=param_image -N 20000101 --dry-run > /tmp/raw2science.out
 diff /tmp/raw2science.out $DIR/raw2science.out.expected
 
 ink "Check distribution dry-run"
-finkctl run distribution --image=param_image --dry-run -N 20000101 > /tmp/distribution.out
-diff /tmp/distribution.out $DIR/distribution.out.expected
+finkctl run distribution --image=param_image -N 20000101 --dry-run > /tmp/distribution.out
+diff -I '^    --conf spark.kubernetes.executor.podTemplateFile=/tmp/fink-broker-[0-9]\+/executor-pod-template.yaml \\$' /tmp/distribution.out $DIR/distribution.out.expected

@@ -8,7 +8,7 @@ run:
   cpus: 1
   memory: 1Gi
   # Default to spark default value
-  # Can be overriden using in stream2raw, raw2science and distribution sections
+  # Can be overriden in stream2raw, raw2science and distribution sections
   # instances: 1
   fink_trigger_update: "2"
   # Can be overriden using --image option
@@ -28,12 +28,9 @@ raw2science:
   instances: 4
   memory: 3Gi
 distribution:
-  cpu: 2
   memory: 2Gi
   # Comma-separated list of kafka servers, default to stream2raw.kafka_socket
   distribution_servers: "kafka-cluster-kafka-external-bootstrap.kafka:9094"
   distribution_schema: "/home/fink/fink-alert-schemas/ztf/distribution_schema_0p2.avsc"
   substream_prefix: "fink_"
-  # Default to <stream2raw.night>
-  # night: "20200101"
 
