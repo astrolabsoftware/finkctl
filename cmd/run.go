@@ -84,6 +84,7 @@ func getRunConfig(task string) RunConfig {
 		slog.Error("Error while getting spark configuration", "task", task, "error", err)
 	}
 
+	slog.Debug("XXXXXXXXXXxxxx RunConfig", "config", rc)
 	if viper.GetString(task+".cpu") != "" {
 		rc.Cpus = viper.GetString(task + ".cpu")
 	}
@@ -190,9 +191,10 @@ org.apache.hadoop:hadoop-aws:3.2.3`
 		cmdTpl += kafkaOptTpl
 	}
 	// TODO make it configurable at the task level using {{ .InstancesOption }}
+	slog.Debug("XXXXXXXXXXXX Instances", "instances", rc.Instances)
 	if rc.Instances != "" {
 		cmdTpl += fmt.Sprintf(`--conf spark.executor.instances=%[1]s \
-	`, rc.Instances)
+    `, rc.Instances)
 	}
 	// TODO make it configurable at the task level
 	if rc.Memory != "" {

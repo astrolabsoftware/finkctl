@@ -55,8 +55,11 @@ var distributionCmd = &cobra.Command{
 
 		createExecutorPodTemplate(rc.PodTemplateFile)
 
-		createKafkaJaasConfigMap(&c)
-
+		if dryRun {
+			slog.Warn("Dry-run mode enabled, not creating KafkaJaasConfigMap")
+		} else {
+			createKafkaJaasConfigMap(&c)
+		}
 		sparkCmd = format(cmdTpl, &c)
 
 		ExecCmd(sparkCmd)

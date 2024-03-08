@@ -87,12 +87,13 @@ func TestViperUnmarshalAutoEnv(t *testing.T) {
 		t.Fatalf("expected name to be %q but got %q", v.GetString("name"), c.Name)
 	}
 }
-func TestGetSparkConfig(t *testing.T) {
+func TestGetRunConfig(t *testing.T) {
 
 	viper.Set(RUN+".fink_trigger_update", "2")
-	viper.Set(RUN+".cpu", "4")
+	viper.Set(RUN+".cpus", "4")
 	viper.Set(DISTRIBUTION+".memory", "8GB")
 	viper.Set(RUN+".image", "test-image")
+	viper.Set(RUN+".night", "20000101")
 
 	t.Logf("Viper config: %v", viper.AllSettings())
 
@@ -104,6 +105,10 @@ func TestGetSparkConfig(t *testing.T) {
 
 	if sc.Memory != "8GB" {
 		t.Errorf("Expected Memory to be '8GB', but got '%s'", sc.Memory)
+	}
+
+	if sc.Instances != "" {
+		t.Errorf("Expected Instances to be '', but got '%s'", sc.Instances)
 	}
 
 	if sc.Binary != "distribute.py" {

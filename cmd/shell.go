@@ -29,8 +29,8 @@ func ExecCmd(command string) (string, string) {
 			slog.Error("cmd.Run() failed", "error", err)
 			syscall.Exit(1)
 		}
-		slog.Info("stdout", stdoutBuf)
-		slog.Info("stderr", stderrBuf)
+		slog.Info("stdout", "buffer", stdoutBuf)
+		slog.Info("stderr", "buffer", stderrBuf)
 
 	} else {
 		slog.Info("Dry run")
