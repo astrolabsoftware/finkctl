@@ -5,8 +5,11 @@ s3:
   bucket: fink-broker-online
 # General parameter used to run fink tasks
 run:
-  cpu: 1
+  cpus: 1
   memory: 1Gi
+  # Default to spark default value
+  # Can be overriden using in stream2raw, raw2science and distribution sections
+  # instances: 1
   fink_trigger_update: "2"
   # Can be overriden using --image option
   image: gitlab-registry.in2p3.fr/astrolabsoftware/fink/fink-broker:2.7.1-33-ge27a2aa-dirty
@@ -14,13 +17,15 @@ run:
   # online_data_prefix: s3a://fink-broker-online
   producer: sims
   log_level: INFO
-  night: 20240101 
+  # Can be overriden using --night option
+  night: 20240101
 stream2raw:
   fink_alert_schema: /home/fink/fink-alert-schemas/ztf/ztf_public_20190903.schema.avro
   kafka_socket: kafka-cluster-kafka-bootstrap.kafka:9092
   kafka_starting_offset: earliest
   kafka_topic: ztf-stream-{{.Night}}
 raw2science:
+  instances: 4
   memory: 3Gi
 distribution:
   cpu: 2

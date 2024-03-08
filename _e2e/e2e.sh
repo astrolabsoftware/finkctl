@@ -26,6 +26,17 @@ users:
   user:
 EOF
 
-finkctl run raw2science --image=param_image --dry-run > /tmp/raw2science.out
+ink "Check -N parameter parsing"
+if finkctl run raw2science --image=param_image -N 2020111101011 --dry-run
+then
+    ink -r "Expected to fail with -N parameter"
+    exit 1
+fi
 
+ink "Check raw2science dry-run"
+finkctl run raw2science --image=param_image --dry-run -N 20000101 > /tmp/raw2science.out
 diff /tmp/raw2science.out $DIR/raw2science.out.expected
+
+ink "Check distribution dry-run"
+finkctl run distribution --image=param_image --dry-run -N 20000101 > /tmp/distribution.out
+diff /tmp/distribution.out $DIR/distribution.out.expected
