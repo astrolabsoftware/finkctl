@@ -218,7 +218,8 @@ func waitForPodExistsBySelector(c *kubernetes.Clientset, namespace, selector str
 			podList, _ := listPods(c, namespace, selector)
 			podCount := len(podList.Items)
 			slog.Debug("Found pods with label", "podCount", podCount, "selector", selector)
-			if podCount == expected {
+			// FIXME - check expected executor count
+			if podCount >= expected {
 				allPodsExists <- true
 				return
 			}
