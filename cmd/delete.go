@@ -6,6 +6,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -36,7 +37,7 @@ var deleteCmd = &cobra.Command{
 				fmt.Fprintf(os.Stderr, "error: unable to delete spark pod %s, reason: %s\n", p.Name, err)
 				os.Exit(1)
 			}
-			logger.Infof("Delete pod %s", p.Name)
+			slog.Info("Delete pod", "podName", p.Name)
 		}
 	},
 }

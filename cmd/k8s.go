@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 	"time"
@@ -126,7 +127,7 @@ func getKafkaTopics() ([]string, error) {
 
 	topics := &kafka.KafkaTopicList{}
 	url := fmt.Sprintf("/apis/kafka.strimzi.io/v1beta2/namespaces/%s/kafkatopics", kafkaNamespace)
-	logger.Debugf("Get Kafka topics from %s", url)
+	slog.Debug("Get Kafka topics", "url", url)
 	d, err := clientSet.RESTClient().Get().AbsPath(url).DoRaw(context.TODO())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get kafka topics. %+v", err)
@@ -162,7 +163,7 @@ func getCurrentNamespace() string {
 }
 
 func waitForPodReady(ctx context.Context, clientset *kubernetes.Clientset, pod *v1.Pod, timeout time.Duration) error {
-	logger.Infof("waiting for pod %s to be running...", pod.Name)
+	slog.Info("waiting for pod to be running", "podName", pod.Name)
 	return wait.PollUntilContextTimeout(ctx, 5*time.Second, timeout, true, func(context context.Context) (bool, error) {
 		pod, err := clientset.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
 		if err != nil {
@@ -175,7 +176,7 @@ func waitForPodReady(ctx context.Context, clientset *kubernetes.Clientset, pod *
 		if podv1.IsPodReady(pod) {
 			return true, nil
 		}
-		logger.Debugf("pod is still initializing")
+		slog.Debug("pod is still initializing")
 		return false, nil
 	})
 }
@@ -216,8 +217,9 @@ func waitForPodExistsBySelector(c *kubernetes.Clientset, namespace, selector str
 		for {
 			podList, _ := listPods(c, namespace, selector)
 			podCount := len(podList.Items)
-			logger.Debugf("Found %d pods with label %s", podCount, selector)
-			if podCount == expected {
+			slog.Debug("Found pods with label", "podCount", podCount, "selector", selector)
+			// FIXME - check expected executor count
+			if podCount >= expected {
 				allPodsExists <- true
 				return
 			}
@@ -227,7 +229,7 @@ func waitForPodExistsBySelector(c *kubernetes.Clientset, namespace, selector str
 
 	select {
 	case <-allPodsExists:
-		logger.Debugf("Condition met: Found %d pods with label %s\n", expected, selector)
+		slog.Debug("Condition met: Found pods with label", "podCount", expected, "selector", selector)
 		return nil
 	case <-time.After(timeout):
 		return fmt.Errorf("error: timed out waiting for pods with label %s", selector)

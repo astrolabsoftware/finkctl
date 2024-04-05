@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
@@ -20,7 +21,7 @@ var waitTopicCmd = &cobra.Command{
 	Short:   "Wait for kafka topics produced by the fink-broker",
 	Run: func(cmd *cobra.Command, args []string) {
 		start := time.Now()
-		logger.Info("Wait for kafka topics produced by the fink-broker")
+		slog.Info("Wait for kafka topics produced by the fink-broker")
 
 		// Channel to signal when the condition is met
 		allTopicsFound := make(chan bool, 1)
@@ -32,7 +33,7 @@ var waitTopicCmd = &cobra.Command{
 				cobra.CheckErr(err)
 				t := time.Now()
 				elapsed := t.Sub(start)
-				logger.Infof("%s Found topics: %s (%d/%d)", elapsed.Round(1), topics, len(topics), expected)
+				slog.Info("Found topics", "elapsedTime", elapsed.Round(1), "topics", topics, "topicsCount", len(topics), "expected", expected)
 				if len(topics) == expected {
 					allTopicsFound <- true
 					return
