@@ -13,21 +13,31 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+func skipk8s(t *testing.T) {
+	// TODO Check against the kubectl cli equivalent?
+	if os.Getenv("FINKCTL_UTEST_K8S") == "" {
+		t.Skip("Skipping Kubernetes tests")
+	}
+}
+
 // TestGetCurrentNamespace tests the getCurrentNamespace function
 // NOTE: an acces to a kubernetes cluster is required to run this test
 func TestGetCurrentNamespace(t *testing.T) {
+	skipk8s(t)
 	ns := getCurrentNamespace()
 	// TODO Check againt the kubectl cli equivalent
 	assert.Equal(t, ns, "default")
 }
 
 func TestGetKafkaPasswordFromSecret(t *testing.T) {
+	skipk8s(t)
 	secret := getKafkaPasswordFromSecret()
 	// TODO Check against the kubectl cli equivalent
 	assert.Equal(t, secret, "TODO")
 }
 
 func TestGetKafkaTopics(t *testing.T) {
+	skipk8s(t)
 	topics, err := getKafkaTopics()
 	if err != nil {
 		t.Errorf("Error getting Kafka topics: %s", err)
@@ -38,6 +48,7 @@ func TestGetKafkaTopics(t *testing.T) {
 }
 
 func TestListPods(t *testing.T) {
+	skipk8s(t)
 	clientSet, _ := setKubeClient()
 	namespace := "kube-system"
 	selector := "component=etcd"
@@ -48,6 +59,7 @@ func TestListPods(t *testing.T) {
 }
 
 func TestWaitForPodExistsBySelector(t *testing.T) {
+	skipk8s(t)
 	expected_pods := 1
 	clientSet, _ := setKubeClient()
 	namespace := "kube-system"
@@ -61,6 +73,7 @@ func TestWaitForPodExistsBySelector(t *testing.T) {
 }
 
 func TestWaitForPodReadyBySelector(t *testing.T) {
+	skipk8s(t)
 	clientSet, _ := setKubeClient()
 	namespace := "kube-system"
 	selector := "component=etcd"
