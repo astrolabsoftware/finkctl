@@ -15,7 +15,7 @@ func TestMain(m *testing.M) {
 
 func skipk8s(t *testing.T) {
 	// TODO Check against the kubectl cli equivalent?
-	if os.Getenv("K8S") == "" {
+	if os.Getenv("FINKCTL_UTEST_K8S") == "" {
 		t.Skip("Skipping Kubernetes tests")
 	}
 }
