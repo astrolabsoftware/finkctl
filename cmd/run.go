@@ -203,8 +203,8 @@ org.apache.hadoop:hadoop-aws:3.2.3`
 	}
 	// TODO make it configurable at the task level
 	if rc.Cpu != "" {
-		cmdTpl += fmt.Sprintf(`--conf spark.kubernetes.driver.request.cores=%[1]s \
-    --conf spark.kubernetes.executor.request.cores=%[1]s \
+		cmdTpl += fmt.Sprintf(`--conf spark.driver.cores=%[1]s \
+    --conf spark.executor.cores=%[1]s \
     `, rc.Cpu)
 	}
 	cmdTpl += `local:///home/fink/fink-broker/bin/{{ .Binary }} \

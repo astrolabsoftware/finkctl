@@ -17,8 +17,8 @@ spark-submit --master "k8s://https://127.0.0.1:34729" \
     --conf "spark.executor.extraJavaOptions=-Djava.security.auth.login.config=/etc/fink-broker/kafka-jaas.conf" \
     --conf spark.driver.memory=2Gi \
     --conf spark.executor.memory=2Gi \
-    --conf spark.kubernetes.driver.request.cores=1 \
-    --conf spark.kubernetes.executor.request.cores=1 \
+    --conf spark.driver.cores=1 \
+    --conf spark.executor.cores=1 \
     local:///home/fink/fink-broker/bin/distribute.py \
     -log_level "INFO" \
     -online_data_prefix "s3a://fink-broker-online-20000101" \
