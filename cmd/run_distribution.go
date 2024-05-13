@@ -58,7 +58,7 @@ var distributionCmd = &cobra.Command{
 		if dryRun {
 			slog.Warn("Dry-run mode enabled, not creating KafkaJaasConfigMap")
 		} else {
-			createKafkaJaasConfigMap(&c)
+			createKafkaJaasSecret(&c, true)
 		}
 		sparkCmd = format(cmdTpl, &c)
 
