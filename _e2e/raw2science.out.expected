@@ -1,5 +1,6 @@
 spark-submit --master "k8s://https://127.0.0.1:34729" \
     --deploy-mode cluster \
+    --conf spark.executor.instances=1 \
     --conf spark.kubernetes.namespace=default \
     --conf spark.kubernetes.authenticate.driver.serviceAccountName=spark \
     --conf spark.kubernetes.container.image="param_image" \
@@ -23,4 +24,4 @@ spark-submit --master "k8s://https://127.0.0.1:34729" \
     -online_data_prefix "s3a://fink-broker-online-20000101" \
     -producer "sims" \
     -tinterval "2" \
-    -night "20000101"
+    -night "20000101" -mmconfigpath "no-config"

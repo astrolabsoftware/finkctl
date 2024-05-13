@@ -26,19 +26,19 @@ import (
 const (
 	kubeConfigEnvName         = "KUBECONFIG"
 	kubeConfigDefaultFilename = ".kube/config"
-	configMapNameKafkaJaas    = "fink-kafka-jaas"
-	configMapPathKafkaJaas    = "/etc/fink-broker"
+	secretNameKafkaJaas       = "fink-kafka-jaas"
+	secretPathKafkaJaas       = "/etc/fink-broker"
 )
 
 type kubeVars struct {
-	ConfigMapNameKafkaJaas string
-	ConfigMapPathKafkaJaas string
+	SecretNameKafkaJaas string
+	SecretPathKafkaJaas string
 }
 
 func getKubeVars() kubeVars {
 	kubeVarsInstance := kubeVars{
-		ConfigMapNameKafkaJaas: configMapNameKafkaJaas,
-		ConfigMapPathKafkaJaas: configMapPathKafkaJaas,
+		SecretNameKafkaJaas: secretNameKafkaJaas,
+		SecretPathKafkaJaas: secretPathKafkaJaas,
 	}
 	return kubeVarsInstance
 }
@@ -72,7 +72,7 @@ func setKubeClient() (*kubernetes.Clientset, *rest.Config) {
 	return clientset, config
 }
 
-func createKafkaJaasConfigMap(c *DistributionConfig) {
+func createKafkaJaasSecret(c *DistributionConfig, configMap bool) {
 	kafkaJaasConf := format(resources.KafkaJaasConf, &c)
 
 	clientSet, _ := setKubeClient()
@@ -81,24 +81,43 @@ func createKafkaJaasConfigMap(c *DistributionConfig) {
 
 	files[resources.KafkaJaasConfFile] = kafkaJaasConf
 
-	kind := "ConfigMap"
+	var kind string
 	version := "v1"
-	name := configMapNameKafkaJaas
+	name := secretNameKafkaJaas
 
-	cm := applyv1.ConfigMapApplyConfiguration{
-		TypeMetaApplyConfiguration: applymetav1.TypeMetaApplyConfiguration{
-			Kind:       &kind,
-			APIVersion: &version,
-		},
-		ObjectMetaApplyConfiguration: &applymetav1.ObjectMetaApplyConfiguration{
-			Name: &name,
-		},
-		Data: files,
+	var err error
+	if configMap {
+		kind = "ConfigMap"
+		cm := applyv1.ConfigMapApplyConfiguration{
+			TypeMetaApplyConfiguration: applymetav1.TypeMetaApplyConfiguration{
+				Kind:       &kind,
+				APIVersion: &version,
+			},
+			ObjectMetaApplyConfiguration: &applymetav1.ObjectMetaApplyConfiguration{
+				Name: &name,
+			},
+			Data: files,
+		}
+		_, err = clientSet.CoreV1().ConfigMaps(getCurrentNamespace()).Apply(
+			context.TODO(), &cm,
+			metav1.ApplyOptions{FieldManager: "application/apply-patch"})
+	} else {
+		kind = "Secret"
+		secret := applyv1.SecretApplyConfiguration{
+			TypeMetaApplyConfiguration: applymetav1.TypeMetaApplyConfiguration{
+				Kind:       &kind,
+				APIVersion: &version,
+			},
+			ObjectMetaApplyConfiguration: &applymetav1.ObjectMetaApplyConfiguration{
+				Name: &name,
+			},
+			Data: convertToBytes(files),
+		}
+		_, err = clientSet.CoreV1().Secrets(getCurrentNamespace()).Apply(
+			context.TODO(), &secret,
+			metav1.ApplyOptions{FieldManager: "application/apply-patch"})
+		slog.Debug("Secret created", "name", name, "secret", secret)
 	}
-
-	_, err := clientSet.CoreV1().ConfigMaps(getCurrentNamespace()).Apply(
-		context.TODO(), &cm,
-		metav1.ApplyOptions{FieldManager: "application/apply-patch"})
 	if err != nil {
 		panic(err.Error())
 	}

@@ -84,3 +84,14 @@ func applyVarTemplate(template string, night string) string {
 	}
 	return format(template, &TmplData{Night: night})
 }
+
+func convertToBytes(src map[string]string) map[string][]byte {
+	if src == nil {
+		return nil
+	}
+	dst := make(map[string][]byte, len(src))
+	for k, v := range src {
+		dst[k] = []byte(v)
+	}
+	return dst
+}
