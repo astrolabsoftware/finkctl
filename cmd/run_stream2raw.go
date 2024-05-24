@@ -14,11 +14,12 @@ import (
 const STREAM2RAW string = "stream2raw"
 
 type Stream2RawConfig struct {
-	KafkaSocket         string `mapstructure:"kafka_socket"`
-	KafkaTopic          string `mapstructure:"kafka_topic"`
-	FinkAlertSchema     string `mapstructure:"fink_alert_schema"`
-	KafkaStartingOffset string `mapstructure:"kafka_starting_offset"`
-	Night               string
+	KafkaSocket          string `mapstructure:"kafka_socket"`
+	KafkaTopic           string `mapstructure:"kafka_topic"`
+	FinkAlertSchema      string `mapstructure:"fink_alert_schema"`
+	KafkaStartingOffset  string `mapstructure:"kafka_starting_offset"`
+	MaxOffsetsPerTrigger string `mapstructure:"max_offsets_per_trigger"`
+	Night                string
 }
 
 // stream2rawCmd represents the stream2raw command
@@ -42,7 +43,8 @@ and writes it to a shared file system for further processing and analysis.`,
 		cmdTpl := sparkCmd + `-servers "{{ .KafkaSocket }}" \
     -schema "{{ .FinkAlertSchema }}" \
     -startingoffsets_stream "{{ .KafkaStartingOffset }}" \
-    -topic "{{ .KafkaTopic }}"`
+    -topic "{{ .KafkaTopic }}" \
+    -max_offsets_per_trigger "{{ .MaxOffsetsPerTrigger }}"`
 		c := getStream2RawConfig(rc.Night)
 		sparkCmd = format(cmdTpl, &c)
 

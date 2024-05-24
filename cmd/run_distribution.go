@@ -24,13 +24,16 @@ type KafkaCreds struct {
 }
 
 type DistributionConfig struct {
-	Cpu                 string `mapstructure:"cpu"`
-	DistributionServers string `mapstructure:"distribution_servers"`
-	Memory              string `mapstructure:"memory"`
-	SubstreamPrefix     string `mapstructure:"substream_prefix"`
-	DistributionSchema  string `mapstructure:"distribution_schema"`
-	Night               string
-	KafkaCreds          KafkaCreds `mapstructure:"kafka"`
+	Cpu                    string `mapstructure:"cpu"`
+	DistributionServers    string `mapstructure:"distribution_servers"`
+	Memory                 string `mapstructure:"memory"`
+	SubstreamPrefix        string `mapstructure:"substream_prefix"`
+	DistributionSchema     string `mapstructure:"distribution_schema"`
+	KafkaBufferMemory      string `mapstructure:"kafka_buffer_memory"`
+	KafkaDeliveryTimeoutMs string `mapstructure:"kafka_delivery_timeout_ms"`
+	MmConfigPath           string `mapstructure:"mmconfigpath"`
+	Night                  string
+	KafkaCreds             KafkaCreds `mapstructure:"kafka"`
 }
 
 // distributionCmd represents the distribution command
@@ -51,6 +54,9 @@ var distributionCmd = &cobra.Command{
 		cmdTpl := sparkCmd + `-distribution_servers "{{ .DistributionServers }}" \
     -distribution_schema "{{ .DistributionSchema }}" \
     -substream_prefix "{{ .SubstreamPrefix }}" \
+    -kafka_buffer_memory "{{ .KafkaBufferMemory }}" \
+    -kafka_delivery_timeout_ms "{{ .KafkaDeliveryTimeoutMs }}" \
+    -mmconfigpath "{{ .MmConfigPath }}" \
     -night "{{ .Night }}"`
 
 		createExecutorPodTemplate(rc.PodTemplateFile)
