@@ -13,7 +13,8 @@ import (
 const RAW2SCIENCE string = "raw2science"
 
 type Raw2ScienceConfig struct {
-	Night string
+	MmConfigPath string `mapstructure:"mmconfigpath"`
+	Night        string
 }
 
 // raw2scienceCmd represents the raw2science command
@@ -33,7 +34,7 @@ shared file system and send it to Kafka streams.`,
 
 		sparkCmd, rc := generateSparkCmd(RAW2SCIENCE)
 
-		cmdTpl := sparkCmd + `-night "{{ .Night }}"`
+		cmdTpl := sparkCmd + `-night "{{ .Night }}" -mmconfigpath "{{ .MmConfigPath }}"`
 		c := getRaw2ScienceConfig(rc.Night)
 		sparkCmd = format(cmdTpl, &c)
 		ExecCmd(sparkCmd)
