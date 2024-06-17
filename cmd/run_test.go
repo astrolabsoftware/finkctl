@@ -90,7 +90,7 @@ func TestViperUnmarshalAutoEnv(t *testing.T) {
 func TestGetRunConfig(t *testing.T) {
 
 	viper.Set(RUN+".fink_trigger_update", "2")
-	viper.Set(RUN+".cpus", "4")
+	viper.Set(RUN+".cpu", "4")
 	viper.Set(DISTRIBUTION+".memory", "8GB")
 	viper.Set(RUN+".image", "test-image")
 	viper.Set(RUN+".night", "20000101")

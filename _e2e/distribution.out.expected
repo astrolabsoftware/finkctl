@@ -1,5 +1,6 @@
 spark-submit --master "k8s://https://127.0.0.1:34729" \
     --deploy-mode cluster \
+    --conf spark.executor.instances=1 \
     --conf spark.kubernetes.namespace=default \
     --conf spark.kubernetes.authenticate.driver.serviceAccountName=spark \
     --conf spark.kubernetes.container.image="param_image" \
@@ -13,12 +14,12 @@ spark-submit --master "k8s://https://127.0.0.1:34729" \
     --conf spark.hadoop.fs.s3a.path.style.access=true \
     --conf spark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider \
     --conf spark.hadoop.fs.s3a.impl="org.apache.hadoop.fs.s3a.S3AFileSystem" \
-    --conf spark.kubernetes.executor.podTemplateFile=/tmp/fink-broker-3955890421/executor-pod-template.yaml \
+    --conf spark.kubernetes.executor.podTemplateFile=/tmp/fink-broker-2523638699/executor-pod-template.yaml \
     --conf "spark.executor.extraJavaOptions=-Djava.security.auth.login.config=/etc/fink-broker/kafka-jaas.conf" \
     --conf spark.driver.memory=2Gi \
     --conf spark.executor.memory=2Gi \
-    --conf spark.kubernetes.driver.request.cores=1 \
-    --conf spark.kubernetes.executor.request.cores=1 \
+    --conf spark.driver.cores=1 \
+    --conf spark.executor.cores=1 \
     local:///home/fink/fink-broker/bin/distribute.py \
     -log_level "INFO" \
     -online_data_prefix "s3a://fink-broker-online-20000101" \
@@ -27,4 +28,7 @@ spark-submit --master "k8s://https://127.0.0.1:34729" \
     -distribution_servers "kafka-cluster-kafka-external-bootstrap.kafka:9094" \
     -distribution_schema "/home/fink/fink-alert-schemas/ztf/distribution_schema_0p2.avsc" \
     -substream_prefix "fink_" \
+    -kafka_buffer_memory "134217728" \
+    -kafka_delivery_timeout_ms "240000" \
+    -mmconfigpath "no-config" \
     -night "20000101"

@@ -187,7 +187,7 @@ org.apache.hadoop:hadoop-aws:3.2.3`
 	if task == DISTRIBUTION {
 		kafkaOptTpl := fmt.Sprintf(`--conf spark.kubernetes.executor.podTemplateFile={{ .PodTemplateFile }} \
     --conf "spark.executor.extraJavaOptions=-Djava.security.auth.login.config=%s/%s" \
-    `, configMapPathKafkaJaas, resources.KafkaJaasConfFile)
+    `, secretPathKafkaJaas, resources.KafkaJaasConfFile)
 		cmdTpl += kafkaOptTpl
 	}
 	// TODO make it configurable at the task level using {{ .InstancesOption }}
@@ -202,9 +202,15 @@ org.apache.hadoop:hadoop-aws:3.2.3`
     `, rc.Memory)
 	}
 	// TODO make it configurable at the task level
-	if rc.Cpu != "" {
-		cmdTpl += fmt.Sprintf(`--conf spark.kubernetes.driver.request.cores=%[1]s \
-    --conf spark.kubernetes.executor.request.cores=%[1]s \
+	if rc.Cpu == "0" {
+		// Used for github actions ci tests
+		// spark.driver.cores and spark.executor.cores cannot be equal to zero
+		cmdTpl += `--conf spark.kubernetes.driver.request.cores=0 \
+    --conf spark.kubernetes.executor.request.cores=0 \
+    `
+	} else if rc.Cpu != "" {
+		cmdTpl += fmt.Sprintf(`--conf spark.driver.cores=%[1]s \
+    --conf spark.executor.cores=%[1]s \
     `, rc.Cpu)
 	}
 	cmdTpl += `local:///home/fink/fink-broker/bin/{{ .Binary }} \

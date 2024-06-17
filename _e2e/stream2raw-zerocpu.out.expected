@@ -14,14 +14,17 @@ spark-submit --master "k8s://https://127.0.0.1:34729" \
     --conf spark.hadoop.fs.s3a.path.style.access=true \
     --conf spark.hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider \
     --conf spark.hadoop.fs.s3a.impl="org.apache.hadoop.fs.s3a.S3AFileSystem" \
-    --conf spark.executor.instances=4 \
-    --conf spark.driver.memory=3Gi \
-    --conf spark.executor.memory=3Gi \
-    --conf spark.driver.cores=1 \
-    --conf spark.executor.cores=1 \
-    local:///home/fink/fink-broker/bin/raw2science.py \
+    --conf spark.driver.memory=1Gi \
+    --conf spark.executor.memory=1Gi \
+    --conf spark.kubernetes.driver.request.cores=0 \
+    --conf spark.kubernetes.executor.request.cores=0 \
+    local:///home/fink/fink-broker/bin/stream2raw.py \
     -log_level "INFO" \
     -online_data_prefix "s3a://fink-broker-online-20000101" \
     -producer "sims" \
     -tinterval "2" \
-    -night "20000101" -mmconfigpath "no-config"
+    -servers "kafka-cluster-kafka-bootstrap.kafka:9092" \
+    -schema "/home/fink/fink-alert-schemas/ztf/ztf_public_20190903.schema.avro" \
+    -startingoffsets_stream "earliest" \
+    -topic "ztf-stream-20000101" \
+    -max_offsets_per_trigger "5000"
