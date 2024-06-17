@@ -5,7 +5,7 @@ apiVersion: v1alpha2
 run:
   # Default to spark-submit.sh default values
   # Can be overriden in stream2raw, raw2science and distribution sections
-  cpu: 0
+  cpu: 1
   memory: 1Gi
   # instances: 1
 

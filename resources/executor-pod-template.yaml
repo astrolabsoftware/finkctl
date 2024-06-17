@@ -4,8 +4,8 @@ spec:
   containers:
     - volumeMounts:
       - name: config-volume
-        mountPath: {{ .ConfigMapPathKafkaJaas }}
+        mountPath: {{ .SecretPathKafkaJaas }}
   volumes:
     - name: config-volume
       configMap:
-        name: {{ .ConfigMapNameKafkaJaas }}
+        name: {{ .SecretNameKafkaJaas }}
