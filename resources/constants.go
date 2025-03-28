@@ -5,12 +5,8 @@ import (
 )
 
 const (
-	KafkaJaasConfFile       = "kafka-jaas.conf"
-	ExecutorPodTemplateFile = "executor-pod-template.yaml"
+	KafkaJaasConfFile = "kafka-jaas.conf"
 )
 
 //go:embed kafka-jaas.conf
 var KafkaJaasConf string
-
-//go:embed executor-pod-template.yaml
-var ExecutorPodTemplate string

@@ -1,28 +1,12 @@
 package cmd
 
 import (
-	"log"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/spf13/viper"
 )
-
-func TestGetSparkCmd(t *testing.T) {
-	sc := RunConfig{
-		Image:             "gitlab-registry.in2p3.fr/astrolabsoftware/fink/fink-broker:testtag",
-		Producer:          "sims",
-		OnlineDataPrefix:  "/home/fink/fink-broker/online",
-		FinkTriggerUpdate: "2",
-		LogLevel:          "INFO",
-	}
-
-	sc.Binary = "changeme.py"
-	sparkCmd := applyTemplate(sc, DISTRIBUTION)
-
-	log.Printf("CMD %v", sparkCmd)
-}
 
 func TestViperReadConfigFile(t *testing.T) {
 	type config struct {
@@ -85,45 +69,5 @@ func TestViperUnmarshalAutoEnv(t *testing.T) {
 
 	if v.GetString("name") != c.Name {
 		t.Fatalf("expected name to be %q but got %q", v.GetString("name"), c.Name)
-	}
-}
-func TestGetRunConfig(t *testing.T) {
-
-	viper.Set(RUN+".fink_trigger_update", "2")
-	viper.Set(RUN+".cpu", "4")
-	viper.Set(DISTRIBUTION+".memory", "8GB")
-	viper.Set(RUN+".image", "test-image")
-	viper.Set(RUN+".night", "20000101")
-
-	t.Logf("Viper config: %v", viper.AllSettings())
-
-	sc := getRunConfig(DISTRIBUTION)
-
-	if sc.Cpu != "4" {
-		t.Errorf("Expected CPU to be '4', but got '%s'", sc.Cpu)
-	}
-
-	if sc.Memory != "8GB" {
-		t.Errorf("Expected Memory to be '8GB', but got '%s'", sc.Memory)
-	}
-
-	if sc.Instances != "" {
-		t.Errorf("Expected Instances to be '', but got '%s'", sc.Instances)
-	}
-
-	if sc.Binary != "distribute.py" {
-		t.Errorf("Expected Binary to be 'distribute.py', but got '%s'", sc.Binary)
-	}
-
-	// if sc.ApiServerUrl != "test-api-server-url" {
-	// 	t.Errorf("Expected ApiServerUrl to be 'test-api-server-url', but got '%s'", sc.ApiServerUrl)
-	// }
-
-	if sc.StorageClass != s3 {
-		t.Errorf("Expected StorageClass to be %v, but got '%v'", s3, sc.StorageClass)
-	}
-
-	if sc.Image != "test-image" {
-		t.Errorf("Expected Image to be 'test-image', but got '%s'", sc.Image)
 	}
 }

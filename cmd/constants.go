@@ -1,7 +1,7 @@
 package cmd
 
 const (
-	finkPrefix      = "fink-"
+	finkPrefix      = "fink_"
 	kafkaNamespace  = "kafka"
 	kafkaSecretName = "fink-producer"
 )

@@ -1,15 +1,15 @@
 package cmd
 
 import (
+	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
 	"path"
+	"strings"
 	"time"
 
-	kafka "github.com/RedHatInsights/strimzi-client-go/apis/kafka.strimzi.io/v1beta2"
 	"github.com/astrolabsoftware/finkctl/v3/resources"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/remotecommand"
 	podv1 "k8s.io/kubernetes/pkg/api/v1/pod"
 )
 
@@ -142,23 +143,65 @@ func getKafkaPasswordFromSecret() string {
 // equivalent to "kubectl get -n kafka kafkatopics.kafka.strimzi.io --template='{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}'"
 func getKafkaTopics() ([]string, error) {
 
-	clientSet, _ := setKubeClient()
+	clientSet, config := setKubeClient()
+	pod := "kafka-cluster-dual-role-0"
+	container := "kafka"
 
-	topics := &kafka.KafkaTopicList{}
-	url := fmt.Sprintf("/apis/kafka.strimzi.io/v1beta2/namespaces/%s/kafkatopics", kafkaNamespace)
-	slog.Debug("Get Kafka topics", "url", url)
-	d, err := clientSet.RESTClient().Get().AbsPath(url).DoRaw(context.TODO())
+	// Command to list Kafka topics
+	command := []string{
+		"bin/kafka-topics.sh",
+		"--bootstrap-server", "kafka-cluster-kafka-bootstrap.kafka:9092",
+		"--list",
+	}
+
+	// Execute the command in the specified pod and container
+	req := clientSet.CoreV1().RESTClient().
+		Post().
+		Resource("pods").
+		Name(pod).
+		Namespace(kafkaNamespace).
+		SubResource("exec").
+		Param("container", container).
+		Param("stdin", "false").
+		Param("stdout", "true").
+		Param("stderr", "true").
+		Param("tty", "false")
+
+	for _, arg := range command {
+		req.Param("command", arg)
+	}
+
+	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
 	if err != nil {
-		return nil, fmt.Errorf("failed to get kafka topics. %+v", err)
-	}
-	if err := json.Unmarshal(d, &topics); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal kafka topics. %+v", err)
+		fmt.Printf("Error creating executor: %v\n", err)
+		return nil, err
 	}
 
-	topicNames := make([]string, len(topics.Items))
-	for _, topic := range topics.Items {
-		topicNames = append(topicNames, topic.Name)
+	// Capture the output
+	output := &strings.Builder{}
+	err = exec.StreamWithContext(context.TODO(), remotecommand.StreamOptions{
+		Stdout: output,
+		Stderr: output,
+	})
+	if err != nil {
+		fmt.Printf("Error executing command: %v\n", err)
+		fmt.Println(output.String())
+		return nil, err
 	}
+
+	// Filter the output for topics containing the filter string
+	topicNames := make([]string, 0)
+	scanner := bufio.NewScanner(strings.NewReader(output.String()))
+	fmt.Println("Filtered Kafka topics:")
+	for scanner.Scan() {
+		line := scanner.Text()
+		topicNames = append(topicNames, line)
+	}
+
+	if err := scanner.Err(); err != nil {
+		fmt.Printf("Error reading output: %v\n", err)
+	}
+
 	return topicNames, nil
 }
 

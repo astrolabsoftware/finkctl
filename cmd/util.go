@@ -73,6 +73,7 @@ func getFinkTopics() ([]string, error) {
 			finkTopics = append(finkTopics, t)
 		}
 	}
+	slog.Debug("List of fink topics", "topics", finkTopics)
 	return finkTopics, nil
 }
 

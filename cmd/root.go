@@ -19,7 +19,7 @@ package cmd
 import (
 	"os"
 
-	"github.com/astrolabsoftware/finkctl/v3/log"
+	"github.com/k8s-school/ciux/log"
 	"github.com/spf13/cobra"
 )
 
