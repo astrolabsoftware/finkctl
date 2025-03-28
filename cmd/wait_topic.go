@@ -44,9 +44,9 @@ var waitTopicCmd = &cobra.Command{
 
 		select {
 		case <-allTopicsFound:
-			fmt.Printf("Condition met: Found %d fink topics.", expected)
+			fmt.Printf("Condition met: Found %d fink topics\n", expected)
 		case <-time.After(timeout):
-			fmt.Fprintf(os.Stderr, "error: timed out waiting for the condition on topics")
+			fmt.Fprintf(os.Stderr, "error: timed out waiting for the condition on topics\n")
 			os.Exit(1)
 		}
 
