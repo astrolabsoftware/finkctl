@@ -13,6 +13,7 @@ import (
 	"github.com/astrolabsoftware/finkctl/v3/resources"
 	"github.com/spf13/cobra"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	applyv1 "k8s.io/client-go/applyconfigurations/core/v1"
@@ -73,10 +74,33 @@ func setKubeClient() (*kubernetes.Clientset, *rest.Config) {
 	return clientset, config
 }
 
-func createKafkaJaasSecret(c *DistributionConfig, configMap bool) {
+// waitForNamespace blocks until the given namespace exists or the timeout
+// elapses. The spark namespace is created by an ArgoCD PreSync hook, so it may
+// not exist yet when createsecrets runs right after an asynchronous app sync.
+func waitForNamespace(ctx context.Context, clientSet *kubernetes.Clientset, namespace string, timeout time.Duration) error {
+	slog.Info("waiting for namespace to exist", "namespace", namespace, "timeout", timeout)
+	return wait.PollUntilContextTimeout(ctx, 2*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+		_, err := clientSet.CoreV1().Namespaces().Get(ctx, namespace, metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				slog.Debug("namespace not found yet", "namespace", namespace)
+				return false, nil
+			}
+			return false, err
+		}
+		return true, nil
+	})
+}
+
+func createKafkaJaasSecret(c *DistributionConfig, configMap bool, timeout time.Duration) {
 	kafkaJaasConf := format(resources.KafkaJaasConf, &c)
 
 	clientSet, _ := setKubeClient()
+
+	namespace := getCurrentNamespace()
+	if err := waitForNamespace(context.TODO(), clientSet, namespace, timeout); err != nil {
+		panic(fmt.Sprintf("namespace %q is not available after %s: %v", namespace, timeout, err))
+	}
 
 	files := make(map[string]string)
 
@@ -99,7 +123,7 @@ func createKafkaJaasSecret(c *DistributionConfig, configMap bool) {
 			},
 			Data: files,
 		}
-		_, err = clientSet.CoreV1().ConfigMaps(getCurrentNamespace()).Apply(
+		_, err = clientSet.CoreV1().ConfigMaps(namespace).Apply(
 			context.TODO(), &cm,
 			metav1.ApplyOptions{FieldManager: "application/apply-patch"})
 	} else {
@@ -114,7 +138,7 @@ func createKafkaJaasSecret(c *DistributionConfig, configMap bool) {
 			},
 			Data: convertToBytes(files),
 		}
-		_, err = clientSet.CoreV1().Secrets(getCurrentNamespace()).Apply(
+		_, err = clientSet.CoreV1().Secrets(namespace).Apply(
 			context.TODO(), &secret,
 			metav1.ApplyOptions{FieldManager: "application/apply-patch"})
 		slog.Debug("Secret created", "name", name, "secret", secret)
