@@ -56,12 +56,25 @@ func getKubeConfig() string {
 	return kubeConfigFilename
 }
 
-func setKubeClient() (*kubernetes.Clientset, *rest.Config) {
+// getKubeRestConfig returns the client configuration, taken from the service
+// account when running inside a pod and from the kubeconfig file otherwise.
+// finkctl runs both ways: interactively from a workstation, and as a CronJob
+// in the cluster, where no kubeconfig is mounted.
+func getKubeRestConfig() (*rest.Config, error) {
+	if config, err := rest.InClusterConfig(); err == nil {
+		slog.Debug("using in-cluster kubernetes configuration")
+		return config, nil
+	}
 
 	kubeconfig := getKubeConfig()
-
+	slog.Debug("using kubeconfig file", "path", kubeconfig)
 	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	return clientcmd.BuildConfigFromFlags("", kubeconfig)
+}
+
+func setKubeClient() (*kubernetes.Clientset, *rest.Config) {
+
+	config, err := getKubeRestConfig()
 	if err != nil {
 		panic(err.Error())
 	}
@@ -163,27 +176,36 @@ func getKafkaPasswordFromSecret() string {
 	return string(secret.Data["password"])
 }
 
-// getKafkaTopic returns the kafka topics
-// equivalent to "kubectl get -n kafka kafkatopics.kafka.strimzi.io --template='{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}'"
-func getKafkaTopics() ([]string, error) {
+// resolvePod returns the name of the first pod matching the selector in the
+// namespace, falling back to the well-known name when the lookup returns
+// nothing, so the command keeps working if the operator labels ever change.
+func resolvePod(namespace string, selector string, fallback string) string {
+
+	clientSet, _ := setKubeClient()
+
+	podList, err := listPods(clientSet, namespace, selector)
+	if err != nil || len(podList.Items) == 0 {
+		slog.Debug("no pod matching selector, using well-known name",
+			"namespace", namespace, "selector", selector, "pod", fallback)
+		return fallback
+	}
+	return podList.Items[0].Name
+}
+
+// execInPod runs a command inside a container of a running pod and returns its
+// combined output, the equivalent of
+// "kubectl exec -n <namespace> <pod> -c <container> -- <command>"
+func execInPod(namespace string, pod string, container string, command []string) (string, error) {
 
 	clientSet, config := setKubeClient()
-	pod := "kafka-cluster-dual-role-0"
-	container := "kafka"
 
-	// Command to list Kafka topics
-	command := []string{
-		"bin/kafka-topics.sh",
-		"--bootstrap-server", "kafka-cluster-kafka-bootstrap.kafka:9092",
-		"--list",
-	}
+	slog.Debug("executing command in pod", "namespace", namespace, "pod", pod, "command", command)
 
-	// Execute the command in the specified pod and container
 	req := clientSet.CoreV1().RESTClient().
 		Post().
 		Resource("pods").
 		Name(pod).
-		Namespace(kafkaNamespace).
+		Namespace(namespace).
 		SubResource("exec").
 		Param("container", container).
 		Param("stdin", "false").
@@ -197,8 +219,7 @@ func getKafkaTopics() ([]string, error) {
 
 	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
 	if err != nil {
-		fmt.Printf("Error creating executor: %v\n", err)
-		return nil, err
+		return "", fmt.Errorf("unable to create executor for pod %s/%s: %w", namespace, pod, err)
 	}
 
 	// Capture the output
@@ -208,14 +229,34 @@ func getKafkaTopics() ([]string, error) {
 		Stderr: output,
 	})
 	if err != nil {
-		fmt.Printf("Error executing command: %v\n", err)
-		fmt.Println(output.String())
-		return nil, err
+		return output.String(), fmt.Errorf("command %v failed in pod %s/%s: %w", command, namespace, pod, err)
 	}
 
+	return output.String(), nil
+}
+
+// getKafkaTopic returns the kafka topics
+// equivalent to "kubectl get -n kafka kafkatopics.kafka.strimzi.io --template='{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}'"
+func getKafkaTopics() ([]string, error) {
+
+	// Command to list Kafka topics
+	command := []string{
+		kafkaTopicsBin,
+		"--bootstrap-server", kafkaBootstrapServer,
+		"--list",
+	}
+
+	pod := resolvePod(kafkaNamespace, kafkaBrokerSelector, kafkaPodFallback)
+
+	out, err := execInPod(kafkaNamespace, pod, kafkaContainer, command)
+	if err != nil {
+		fmt.Printf("Error executing command: %v\n", err)
+		fmt.Println(out)
+		return nil, err
+	}
 	// Filter the output for topics containing the filter string
 	topicNames := make([]string, 0)
-	scanner := bufio.NewScanner(strings.NewReader(output.String()))
+	scanner := bufio.NewScanner(strings.NewReader(out))
 	fmt.Println("Filtered Kafka topics:")
 	for scanner.Scan() {
 		line := scanner.Text()
