@@ -9,6 +9,21 @@ env:
   CIUXCONFIG: /tmp/ciux.sh
   CIUX_VERSION: v0.0.7-rc5
 jobs:
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '^1.21.4'
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Build finkctl
+        run: |
+          go build ./...
+      - name: Run unit tests
+        run: |
+          go test ./...
   e2e:
     name: e2e tests
     runs-on: ubuntu-latest
@@ -36,7 +51,11 @@ jobs:
   push:
     name: Push finkctl image to IN2P3 registry
     runs-on: ubuntu-latest
-    needs: e2e
+    # Gated on the unit tests, not on the e2e job: _e2e/e2e.sh still drives
+    # `finkctl run raw2science|stream2raw`, subcommands dropped when
+    # fink-broker moved to Helm-deployed SparkApplications, so it cannot pass
+    # as it stands
+    needs: test
     # Forks and pull requests have no access to the registry credentials
     if: ${{ github.event_name == 'push' }}
     steps:
