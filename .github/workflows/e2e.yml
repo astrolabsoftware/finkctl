@@ -7,21 +7,23 @@ on:
       - main
 env:
   CIUXCONFIG: /tmp/ciux.sh
-  CIUX_VERSION: v0.0.2-rc1
+  CIUX_VERSION: v0.0.7-rc5
 jobs:
   e2e:
     name: e2e tests
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v5
         with:
           go-version: '^1.21.4'
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Install ciux
-        run: go install github.com/k8s-school/ciux@"${{ env.CIUX_VERSION }}"
+        run: |
+          go install github.com/k8s-school/ciux@"${{ env.CIUX_VERSION }}"
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Build finkctl
         run: |
           go install .
@@ -31,3 +33,47 @@ jobs:
       - name: Run e2e test
         run: |
           ./_e2e/e2e.sh
+  push:
+    name: Push finkctl image to IN2P3 registry
+    runs-on: ubuntu-latest
+    needs: e2e
+    # Forks and pull requests have no access to the registry credentials
+    if: ${{ github.event_name == 'push' }}
+    steps:
+      # fetch-depth 0: the image tag is derived from `git describe`
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '^1.21.4'
+      - name: Install ciux
+        run: |
+          go install github.com/k8s-school/ciux@"${{ env.CIUX_VERSION }}"
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      # push-image.sh falls back to `skopeo copy` when the image already
+      # exists in the registry, ie when re-running a build
+      - name: Install skopeo
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y skopeo
+      # Before any ciux command: both the ignition below and build.sh probe
+      # the registry to decide whether the image must be rebuilt
+      - name: Login to IN2P3 registry
+        uses: docker/login-action@v3
+        with:
+          registry: gitlab-registry.in2p3.fr
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_TOKEN }}
+      # Writes .ciux.d/ciux_ci.sh, read back by push-image.sh for the
+      # promoted image url
+      - name: Ciux project ignition
+        run: |
+          ciux ignite --selector ci $PWD
+      - name: Build finkctl image
+        run: |
+          ./build.sh
+      - name: Push image to official registry
+        run: |
+          ./push-image.sh
