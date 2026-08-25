@@ -81,7 +81,31 @@ number of messages pushed to each distribution topic.
 
 Counts are read from the sources of truth, so no Spark job is needed:
   - consumed alerts come from the offsets recorded in the stream2raw checkpoint
-  - distributed alerts come from the Kafka offsets of the output topics`,
+  - distributed alerts come from the Kafka offsets of the output topics
+
+Columns:
+  NIGHT      observing night (YYYYMMDD), one row per night found under
+             <prefix>/raw
+  IN(kafka)  alerts stream2raw actually read from the survey Kafka cluster.
+             Taken from the last *committed* batch of its checkpoint, not from
+             the offsets directory: Spark records the offsets a batch is
+             planned to reach before processing it, so a run dying on its first
+             batch would otherwise look complete. The survey opens a fresh
+             topic every night, so the run starts at offset 0 and that end
+             offset is the count.
+  RAW(f)     number of parquet files written by stream2raw
+  RAW        total size of those files
+  SCI(f)     number of parquet files written by raw2science
+  SCI        total size of those files
+  DISTRIB    messages pushed to the fink_* topics, from their Kafka end
+             offsets. One alert reaching several filters is counted once per
+             topic.
+
+IN(kafka) and DISTRIB are the two ends of the broker and the only pair that
+compares directly -- hence the TOTAL line summing just those two. The file
+counts in between are micro-batch artefacts, not alert counts: raw2science
+starts after stream2raw and flushes at its own pace, so fewer SCI files than
+RAW files means nothing about how many alerts got through.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		reporter, err := newBalanceReporter(balancePrefix, balanceCron, balanceNightOffset)
 		cobra.CheckErr(err)
