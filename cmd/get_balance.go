@@ -83,6 +83,11 @@ Counts are read from the sources of truth, so no Spark job is needed:
   - consumed alerts come from the offsets recorded in the stream2raw checkpoint
   - distributed alerts come from the Kafka offsets of the output topics
 
+Requires an HDFS-backed deployment. Everything but DISTRIB is read by running
+hdfs dfs inside the namenode pod, so a broker storing its datasets on S3 has
+no pod to exec into and the command fails. Only the distribution counts, which
+come from the Kafka pod, would work there.
+
 Columns:
   NIGHT      observing night (YYYYMMDD), one row per night found under
              <prefix>/raw
