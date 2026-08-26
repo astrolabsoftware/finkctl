@@ -1,5 +1,14 @@
 apiVersion: v1alpha1
 registry: gitlab-registry.in2p3.fr/astrolabsoftware/fink
+# Pathes whose content is hashed to tag the image: a change to any of them
+# produces a new image tag.
+sourcePathes:
+  - Dockerfile
+  - main.go
+  - cmd
+  - resources
+  - go.mod
+  - go.sum
 dependencies:
   - package: github.com/k8s-school/ink@v0.0.1-rc5
     labels:
