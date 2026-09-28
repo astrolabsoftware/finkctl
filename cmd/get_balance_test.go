@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -166,4 +168,113 @@ func TestFormatBytes(t *testing.T) {
 	assert.Equal(t, formatBytes(unknownCount), "n/a")
 	assert.Equal(t, formatBytes(512), "512B")
 	assert.Equal(t, formatBytes(4823456789), "4.5GiB")
+}
+
+// fakeHdfs is an in-memory hdfsReader: dirs maps a directory to its entries,
+// files a file to its content, sizes a dataset to its file count and size.
+type fakeHdfs struct {
+	dirs  map[string][]string
+	files map[string]string
+	sizes map[string][2]int64
+}
+
+func (f *fakeHdfs) list(dir string) ([]string, error) {
+	if entries, ok := f.dirs[dir]; ok {
+		return entries, nil
+	}
+	return nil, os.ErrNotExist
+}
+
+func (f *fakeHdfs) count(dataPath string) (int64, int64, error) {
+	if size, ok := f.sizes[dataPath]; ok {
+		return size[0], size[1], nil
+	}
+	return unknownCount, unknownCount, os.ErrNotExist
+}
+
+func (f *fakeHdfs) cat(filePath string) (string, error) {
+	if content, ok := f.files[filePath]; ok {
+		return content, nil
+	}
+	return "", os.ErrNotExist
+}
+
+func (f *fakeHdfs) close() {}
+
+func TestNightsKeepsOnlyNightDirectories(t *testing.T) {
+	reporter := &balanceReporter{prefix: "/user/185", hdfs: &fakeHdfs{dirs: map[string][]string{
+		"/user/185/raw": {"20260811", "_spark_metadata", "20260809", "2026081"},
+	}}}
+
+	nights, err := reporter.nights()
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	assert.Equal(t, nights, []string{"20260809", "20260811"})
+}
+
+func TestNightsFailsWithoutRawDataset(t *testing.T) {
+	reporter := &balanceReporter{prefix: "/user/185", hdfs: &fakeHdfs{}}
+
+	if _, err := reporter.nights(); err == nil {
+		t.Error("expected an error when <prefix>/raw cannot be listed")
+	}
+}
+
+// Only a committed batch counts: offsets/2 is planned but not committed.
+func TestConsumedReadsLastCommittedBatch(t *testing.T) {
+	checkpoint := "/user/185/raw_checkpoint/20260810"
+	reporter := &balanceReporter{prefix: "/user/185", hdfs: &fakeHdfs{
+		dirs: map[string][]string{checkpoint + "/commits": {"0", "1"}},
+		files: map[string]string{
+			checkpoint + "/offsets/1": checkpointBatch,
+			checkpoint + "/offsets/2": strings.Replace(checkpointBatch, "1841233", "9999999", 1),
+		},
+	}}
+
+	assert.Equal(t, reporter.consumed("20260810"), int64(3681135))
+}
+
+// A missing checkpoint, a run that committed nothing and an unreadable batch
+// must all read as unknown, not as zero alert.
+func TestConsumedUnknown(t *testing.T) {
+	checkpoint := "/user/185/raw_checkpoint/20260810"
+
+	for name, fake := range map[string]*fakeHdfs{
+		"no checkpoint":  {},
+		"no commit":      {dirs: map[string][]string{checkpoint + "/commits": {}}},
+		"missing offset": {dirs: map[string][]string{checkpoint + "/commits": {"3"}}},
+	} {
+		reporter := &balanceReporter{prefix: "/user/185", hdfs: fake}
+		if got := reporter.consumed("20260810"); got != unknownCount {
+			t.Errorf("%s: consumed = %d, want unknown", name, got)
+		}
+	}
+}
+
+func TestDataset(t *testing.T) {
+	reporter := &balanceReporter{prefix: "/user/185", hdfs: &fakeHdfs{sizes: map[string][2]int64{
+		"/user/185/raw/20260810": {42, 4823456789},
+	}}}
+
+	files, bytes := reporter.dataset("/user/185/raw/20260810")
+	assert.Equal(t, files, int64(42))
+	assert.Equal(t, bytes, int64(4823456789))
+
+	files, bytes = reporter.dataset("/user/185/science/20260810")
+	assert.Equal(t, files, unknownCount)
+	assert.Equal(t, bytes, unknownCount)
+}
+
+// An unreachable NameNode must fail fast with an error, not hang the report.
+func TestNativeReaderUnreachableNamenode(t *testing.T) {
+	start := time.Now()
+	// TEST-NET-1 (RFC 5737): never routed, so the dial runs into its timeout
+	// or is refused at once, depending on the host network.
+	if _, err := newNativeReader([]string{"192.0.2.1:8020"}, "185"); err == nil {
+		t.Fatal("expected an error on an unreachable NameNode")
+	}
+	if elapsed := time.Since(start); elapsed > hdfsDialTimeout+5*time.Second {
+		t.Errorf("connection attempt took %s, beyond the dial timeout", elapsed)
+	}
 }
