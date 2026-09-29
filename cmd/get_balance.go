@@ -6,6 +6,7 @@ package cmd
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -133,6 +134,7 @@ RAW files means nothing about how many alerts got through.`,
 			cobra.CheckErr(err)
 		}
 		if len(nights) == 0 {
+			fmt.Printf("No observing night under %s/raw yet\n", reporter.prefix)
 			return
 		}
 
@@ -199,13 +201,28 @@ type podReader struct {
 	pod string
 }
 
-func (r *podReader) hdfs(args ...string) (string, error) {
-	command := append([]string{hdfsBin, "dfs"}, args...)
-	return execInPod(hdfsNamespace, r.pod, hdfsContainer, command)
+// hdfs runs "hdfs dfs <args> <target>" in the namenode pod.
+func (r *podReader) hdfs(target string, args ...string) (string, error) {
+	command := append(append([]string{hdfsBin, "dfs"}, args...), target)
+	out, err := execInPod(hdfsNamespace, r.pod, hdfsContainer, command)
+	if err != nil {
+		return out, notFound(target, out, err)
+	}
+	return out, nil
+}
+
+// notFound turns the failure of an hdfs dfs command on a missing path into
+// os.ErrNotExist, the error the native client returns, so callers can tell a
+// dataset that does not exist yet from HDFS being unreachable.
+func notFound(target string, out string, err error) error {
+	if strings.Contains(out, "No such file or directory") {
+		return fmt.Errorf("%s: %w", target, os.ErrNotExist)
+	}
+	return err
 }
 
 func (r *podReader) list(dir string) ([]string, error) {
-	out, err := r.hdfs("-ls", dir)
+	out, err := r.hdfs(dir, "-ls")
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +230,7 @@ func (r *podReader) list(dir string) ([]string, error) {
 }
 
 func (r *podReader) count(dataPath string) (int64, int64, error) {
-	out, err := r.hdfs("-count", dataPath)
+	out, err := r.hdfs(dataPath, "-count")
 	if err != nil {
 		return unknownCount, unknownCount, err
 	}
@@ -221,7 +238,7 @@ func (r *podReader) count(dataPath string) (int64, int64, error) {
 }
 
 func (r *podReader) cat(filePath string) (string, error) {
-	return r.hdfs("-cat", filePath)
+	return r.hdfs(filePath, "-cat")
 }
 
 func (r *podReader) close() {}
@@ -332,6 +349,11 @@ func (r *balanceReporter) kafkaOffsets(selector []string, timeSpec string) (map[
 // nights returns every observing night present in the raw dataset.
 func (r *balanceReporter) nights() ([]string, error) {
 	names, err := r.hdfs.list(path.Join(r.prefix, "raw"))
+	if errors.Is(err, os.ErrNotExist) {
+		// No run has written anything yet, e.g. on a fresh deployment
+		slog.Info("no raw dataset yet", "path", path.Join(r.prefix, "raw"))
+		return []string{}, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("unable to list nights under %s/raw: %w", r.prefix, err)
 	}

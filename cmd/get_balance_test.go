@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -213,11 +214,46 @@ func TestNightsKeepsOnlyNightDirectories(t *testing.T) {
 	assert.Equal(t, nights, []string{"20260809", "20260811"})
 }
 
-func TestNightsFailsWithoutRawDataset(t *testing.T) {
+// Before the first run, <prefix>/raw does not exist yet: that is an empty
+// report, not an error, or the daily CronJob fails on every fresh deployment.
+func TestNightsWithoutRawDataset(t *testing.T) {
 	reporter := &balanceReporter{prefix: "/user/185", hdfs: &fakeHdfs{}}
+
+	nights, err := reporter.nights()
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	assert.Equal(t, nights, []string{})
+}
+
+// Any other failure to list <prefix>/raw (denied exec, unreachable NameNode)
+// must still fail the report.
+func TestNightsFailsWhenRawCannotBeListed(t *testing.T) {
+	reporter := &balanceReporter{prefix: "/user/185", hdfs: &failingHdfs{}}
 
 	if _, err := reporter.nights(); err == nil {
 		t.Error("expected an error when <prefix>/raw cannot be listed")
+	}
+}
+
+// failingHdfs fails every read, like an HDFS that cannot be reached.
+type failingHdfs struct{ fakeHdfs }
+
+func (f *failingHdfs) list(dir string) ([]string, error) {
+	return nil, errors.New("connection refused")
+}
+
+// hdfs dfs reports a missing path on its output, with a failed exit code.
+func TestNotFoundFromHdfsOutput(t *testing.T) {
+	err := notFound("/user/185/raw",
+		"ls: `/user/185/raw': No such file or directory\n", errors.New("command terminated with exit code 1"))
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("expected os.ErrNotExist, got %v", err)
+	}
+
+	err = notFound("/user/185/raw", "Permission denied", errors.New("command terminated with exit code 1"))
+	if errors.Is(err, os.ErrNotExist) {
+		t.Errorf("a permission error must not read as a missing path: %v", err)
 	}
 }
 
