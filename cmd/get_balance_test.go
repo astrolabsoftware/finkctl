@@ -33,37 +33,15 @@ func TestParseCheckpointOffsetsWithoutSource(t *testing.T) {
 	assert.Equal(t, total, unknownCount)
 }
 
-func TestParseHdfsCount(t *testing.T) {
-	files, bytes, err := parseHdfsCount("           2            42          4823456789 /user/185/raw/20260810")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	assert.Equal(t, files, int64(42))
-	assert.Equal(t, bytes, int64(4823456789))
-}
-
-func TestParseHdfsCountRejectsUnexpectedOutput(t *testing.T) {
-	if _, _, err := parseHdfsCount("ls: `/user/185/raw/20260810': No such file or directory"); err == nil {
-		t.Error("expected an error on an unexpected hdfs count output")
-	}
-}
-
-func TestParseListingAndLastBatch(t *testing.T) {
-	listing := `Found 3 items
--rw-r--r--   2 185 supergroup        432 2026-08-11 12:34 /user/185/raw_checkpoint/20260810/offsets/0
--rw-r--r--   2 185 supergroup        436 2026-08-11 18:02 /user/185/raw_checkpoint/20260810/offsets/9
--rw-r--r--   2 185 supergroup        436 2026-08-12 05:57 /user/185/raw_checkpoint/20260810/offsets/12`
-
-	names := parseListing(listing)
-	assert.Equal(t, names, []string{"0", "9", "12"})
+func TestLastBatch(t *testing.T) {
 	// Batches are numbered, not zero-padded: they must be ordered numerically.
-	assert.Equal(t, lastBatch(names), "12")
+	assert.Equal(t, lastBatch([]string{"0", "9", "12"}), "12")
 }
 
 // A run that died before committing anything leaves an empty commits
 // directory: no batch was processed, which must not read as zero alert.
 func TestLastBatchWithoutCommit(t *testing.T) {
-	assert.Equal(t, lastBatch(parseListing("")), "")
+	assert.Equal(t, lastBatch([]string{}), "")
 }
 
 func TestParseOffsets(t *testing.T) {
@@ -241,20 +219,6 @@ type failingHdfs struct{ fakeHdfs }
 
 func (f *failingHdfs) list(dir string) ([]string, error) {
 	return nil, errors.New("connection refused")
-}
-
-// hdfs dfs reports a missing path on its output, with a failed exit code.
-func TestNotFoundFromHdfsOutput(t *testing.T) {
-	err := notFound("/user/185/raw",
-		"ls: `/user/185/raw': No such file or directory\n", errors.New("command terminated with exit code 1"))
-	if !errors.Is(err, os.ErrNotExist) {
-		t.Errorf("expected os.ErrNotExist, got %v", err)
-	}
-
-	err = notFound("/user/185/raw", "Permission denied", errors.New("command terminated with exit code 1"))
-	if errors.Is(err, os.ErrNotExist) {
-		t.Errorf("a permission error must not read as a missing path: %v", err)
-	}
 }
 
 // Only a committed batch counts: offsets/2 is planned but not committed.

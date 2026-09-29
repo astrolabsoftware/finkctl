@@ -88,14 +88,11 @@ Counts are read from the sources of truth, so no Spark job is needed:
   - consumed alerts come from the offsets recorded in the stream2raw checkpoint
   - distributed alerts come from the Kafka offsets of the output topics
 
-Requires an HDFS-backed deployment. Everything but DISTRIB is read from HDFS:
-  - by default, by running hdfs dfs inside the Stackable namenode pod of the
-    cluster;
-  - with --namenode, by connecting directly to that NameNode (RPC port) and
-    its DataNodes, e.g. for an HDFS outside the cluster. The command must then
-    run where both are reachable, typically in a pod.
-A broker storing its datasets on S3 has no HDFS to read and the command fails.
-Only the distribution counts, which come from the Kafka pod, would work there.
+Requires an HDFS-backed deployment. Everything but DISTRIB is read from HDFS,
+by connecting to the NameNode(s) given with --namenode (RPC port) and to the
+DataNodes, whether HDFS runs in the cluster or outside it. The command must
+run where both are reachable, typically in a pod of the cluster. A broker
+storing its datasets on S3 has no HDFS to read and the command fails.
 
 Columns:
   NIGHT      observing night (YYYYMMDD), one row per night found under
@@ -121,7 +118,7 @@ counts in between are micro-batch artefacts, not alert counts: raw2science
 starts after stream2raw and flushes at its own pace, so fewer SCI files than
 RAW files means nothing about how many alerts got through.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		reader, err := newHdfsReader(balanceNamenode, balanceHdfsUser)
+		reader, err := newNativeReader(strings.Split(balanceNamenode, ","), balanceHdfsUser)
 		cobra.CheckErr(err)
 		defer reader.close()
 
@@ -161,9 +158,10 @@ func init() {
 	getBalanceCmd.Flags().IntVar(&balanceNightOffset, "night-offset", 24,
 		"Hours between a night and the run processing it, i.e. the chart value scheduled.nightOffsetHours")
 	getBalanceCmd.Flags().StringVar(&balanceNamenode, "namenode", "",
-		"NameNode RPC address(es) to read HDFS from directly, host:port[,host:port] for HA. Default: exec into the in-cluster namenode pod")
+		"NameNode RPC address(es) to read HDFS from, host:port[,host:port] for HA")
+	cobra.CheckErr(getBalanceCmd.MarkFlagRequired("namenode"))
 	getBalanceCmd.Flags().StringVar(&balanceHdfsUser, "hdfs-user", defaultHdfsUser(),
-		"HDFS user to act as with --namenode. Default: $HADOOP_USER_NAME, else 185 (the Spark containers uid)")
+		"HDFS user to act as. Default: $HADOOP_USER_NAME, else 185 (the Spark containers uid)")
 }
 
 // defaultHdfsUser mirrors the Hadoop client: $HADOOP_USER_NAME when set, else
@@ -176,8 +174,8 @@ func defaultHdfsUser() string {
 	return "185"
 }
 
-// hdfsReader reads the datasets of a report, either through the in-cluster
-// namenode pod or directly from a NameNode.
+// hdfsReader reads the datasets of a report. It lets the report logic be
+// tested against an in-memory HDFS.
 type hdfsReader interface {
 	// list returns the base names of the entries of a directory.
 	list(dir string) ([]string, error)
@@ -187,61 +185,6 @@ type hdfsReader interface {
 	cat(path string) (string, error)
 	close()
 }
-
-func newHdfsReader(namenode string, user string) (hdfsReader, error) {
-	if namenode == "" {
-		return &podReader{pod: resolvePod(hdfsNamespace, hdfsNameNodeSelector, hdfsPodFallback)}, nil
-	}
-	return newNativeReader(strings.Split(namenode, ","), user)
-}
-
-// podReader runs hdfs dfs inside the Stackable namenode pod, which needs no
-// network access to HDFS from where finkctl runs, only to the Kubernetes API.
-type podReader struct {
-	pod string
-}
-
-// hdfs runs "hdfs dfs <args> <target>" in the namenode pod.
-func (r *podReader) hdfs(target string, args ...string) (string, error) {
-	command := append(append([]string{hdfsBin, "dfs"}, args...), target)
-	out, err := execInPod(hdfsNamespace, r.pod, hdfsContainer, command)
-	if err != nil {
-		return out, notFound(target, out, err)
-	}
-	return out, nil
-}
-
-// notFound turns the failure of an hdfs dfs command on a missing path into
-// os.ErrNotExist, the error the native client returns, so callers can tell a
-// dataset that does not exist yet from HDFS being unreachable.
-func notFound(target string, out string, err error) error {
-	if strings.Contains(out, "No such file or directory") {
-		return fmt.Errorf("%s: %w", target, os.ErrNotExist)
-	}
-	return err
-}
-
-func (r *podReader) list(dir string) ([]string, error) {
-	out, err := r.hdfs(dir, "-ls")
-	if err != nil {
-		return nil, err
-	}
-	return parseListing(out), nil
-}
-
-func (r *podReader) count(dataPath string) (int64, int64, error) {
-	out, err := r.hdfs(dataPath, "-count")
-	if err != nil {
-		return unknownCount, unknownCount, err
-	}
-	return parseHdfsCount(out)
-}
-
-func (r *podReader) cat(filePath string) (string, error) {
-	return r.hdfs(filePath, "-cat")
-}
-
-func (r *podReader) close() {}
 
 // hdfsDialTimeout bounds each connection to the NameNode and the DataNodes, so
 // that an unreachable HDFS fails the report instead of hanging it.
@@ -509,22 +452,6 @@ func runWindow(night string, cron string, offsetHours int) (time.Time, time.Time
 	return start, start.Add(24 * time.Hour), nil
 }
 
-// parseListing returns the base names of the entries listed by "hdfs dfs -ls".
-func parseListing(out string) []string {
-	names := make([]string, 0)
-
-	scanner := bufio.NewScanner(strings.NewReader(out))
-	for scanner.Scan() {
-		fields := strings.Fields(scanner.Text())
-		// permissions replicas owner group size date time path
-		if len(fields) < 8 {
-			continue
-		}
-		names = append(names, path.Base(fields[len(fields)-1]))
-	}
-	return names
-}
-
 // lastBatch returns the highest numbered batch of a checkpoint offsets
 // directory, which holds the offsets reached by the query.
 func lastBatch(names []string) string {
@@ -576,26 +503,6 @@ func parseCheckpointOffsets(content string) (int64, error) {
 		return unknownCount, err
 	}
 	return total, nil
-}
-
-// parseHdfsCount reads the output of "hdfs dfs -count <path>", made of the
-// directory count, the file count, the content size and the path.
-func parseHdfsCount(out string) (int64, int64, error) {
-	fields := strings.Fields(out)
-	if len(fields) < 3 {
-		return unknownCount, unknownCount, fmt.Errorf("unexpected hdfs count output: %q", out)
-	}
-
-	files, err := strconv.ParseInt(fields[1], 10, 64)
-	if err != nil {
-		return unknownCount, unknownCount, fmt.Errorf("unexpected file count in %q: %w", out, err)
-	}
-
-	bytes, err := strconv.ParseInt(fields[2], 10, 64)
-	if err != nil {
-		return unknownCount, unknownCount, fmt.Errorf("unexpected content size in %q: %w", out, err)
-	}
-	return files, bytes, nil
 }
 
 // parseOffsets reads the output of kafka-get-offsets.sh, one
