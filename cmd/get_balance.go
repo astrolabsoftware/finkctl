@@ -6,9 +6,11 @@ package cmd
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"os"
 	"path"
 	"sort"
@@ -17,6 +19,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	hdfsclient "github.com/colinmarc/hdfs/v2"
 	"github.com/spf13/cobra"
 )
 
@@ -42,6 +45,8 @@ var (
 	balanceNight       string
 	balanceCron        string
 	balanceNightOffset int
+	balanceNamenode    string
+	balanceHdfsUser    string
 )
 
 // topicCount is the number of messages a filter topic received during one run
@@ -83,10 +88,11 @@ Counts are read from the sources of truth, so no Spark job is needed:
   - consumed alerts come from the offsets recorded in the stream2raw checkpoint
   - distributed alerts come from the Kafka offsets of the output topics
 
-Requires an HDFS-backed deployment. Everything but DISTRIB is read by running
-hdfs dfs inside the namenode pod, so a broker storing its datasets on S3 has
-no pod to exec into and the command fails. Only the distribution counts, which
-come from the Kafka pod, would work there.
+Requires an HDFS-backed deployment. Everything but DISTRIB is read from HDFS,
+by connecting to the NameNode(s) given with --namenode (RPC port) and to the
+DataNodes, whether HDFS runs in the cluster or outside it. The command must
+run where both are reachable, typically in a pod of the cluster. A broker
+storing its datasets on S3 has no HDFS to read and the command fails.
 
 Columns:
   NIGHT      observing night (YYYYMMDD), one row per night found under
@@ -112,7 +118,11 @@ counts in between are micro-batch artefacts, not alert counts: raw2science
 starts after stream2raw and flushes at its own pace, so fewer SCI files than
 RAW files means nothing about how many alerts got through.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		reporter, err := newBalanceReporter(balancePrefix, balanceCron, balanceNightOffset)
+		reader, err := newNativeReader(strings.Split(balanceNamenode, ","), balanceHdfsUser)
+		cobra.CheckErr(err)
+		defer reader.close()
+
+		reporter, err := newBalanceReporter(reader, balancePrefix, balanceCron, balanceNightOffset)
 		cobra.CheckErr(err)
 
 		nights := []string{balanceNight}
@@ -121,6 +131,7 @@ RAW files means nothing about how many alerts got through.`,
 			cobra.CheckErr(err)
 		}
 		if len(nights) == 0 {
+			fmt.Printf("No observing night under %s/raw yet\n", reporter.prefix)
 			return
 		}
 
@@ -146,19 +157,106 @@ func init() {
 		"UTC time at which a run starts, i.e. the chart value scheduled.schedule")
 	getBalanceCmd.Flags().IntVar(&balanceNightOffset, "night-offset", 24,
 		"Hours between a night and the run processing it, i.e. the chart value scheduled.nightOffsetHours")
+	getBalanceCmd.Flags().StringVar(&balanceNamenode, "namenode", "",
+		"NameNode RPC address(es) to read HDFS from, host:port[,host:port] for HA")
+	cobra.CheckErr(getBalanceCmd.MarkFlagRequired("namenode"))
+	getBalanceCmd.Flags().StringVar(&balanceHdfsUser, "hdfs-user", defaultHdfsUser(),
+		"HDFS user to act as. Default: $HADOOP_USER_NAME, else 185 (the Spark containers uid)")
 }
 
-// balanceReporter holds the pods the report is collected from. They are
+// defaultHdfsUser mirrors the Hadoop client: $HADOOP_USER_NAME when set, else
+// 185, the uid of the Spark containers, which have no passwd entry and so
+// present it literally as their user name.
+func defaultHdfsUser() string {
+	if user := os.Getenv("HADOOP_USER_NAME"); user != "" {
+		return user
+	}
+	return "185"
+}
+
+// hdfsReader reads the datasets of a report. It lets the report logic be
+// tested against an in-memory HDFS.
+type hdfsReader interface {
+	// list returns the base names of the entries of a directory.
+	list(dir string) ([]string, error)
+	// count returns the number of files and the size in bytes under a path.
+	count(path string) (int64, int64, error)
+	// cat returns the content of a file.
+	cat(path string) (string, error)
+	close()
+}
+
+// hdfsDialTimeout bounds each connection to the NameNode and the DataNodes, so
+// that an unreachable HDFS fails the report instead of hanging it.
+const hdfsDialTimeout = 10 * time.Second
+
+// nativeReader talks to the NameNode RPC port and reads files from the
+// DataNodes. DataNodes are reached by the IP the NameNode reports, as their
+// host names often do not resolve outside the HDFS cluster.
+type nativeReader struct {
+	client *hdfsclient.Client
+}
+
+func newNativeReader(addresses []string, user string) (*nativeReader, error) {
+	dialer := &net.Dialer{Timeout: hdfsDialTimeout, KeepAlive: 30 * time.Second}
+
+	client, err := hdfsclient.NewClient(hdfsclient.ClientOptions{
+		Addresses:           addresses,
+		User:                user,
+		UseDatanodeHostname: false,
+		NamenodeDialFunc:    dialer.DialContext,
+		DatanodeDialFunc:    dialer.DialContext,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("unable to connect to the NameNode %s: %w", strings.Join(addresses, ","), err)
+	}
+	return &nativeReader{client: client}, nil
+}
+
+func (r *nativeReader) list(dir string) ([]string, error) {
+	entries, err := r.client.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	return names, nil
+}
+
+func (r *nativeReader) count(dataPath string) (int64, int64, error) {
+	summary, err := r.client.GetContentSummary(dataPath)
+	if err != nil {
+		return unknownCount, unknownCount, err
+	}
+	return int64(summary.FileCount()), summary.Size(), nil
+}
+
+func (r *nativeReader) cat(filePath string) (string, error) {
+	content, err := r.client.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+	return string(content), nil
+}
+
+func (r *nativeReader) close() {
+	r.client.Close()
+}
+
+// balanceReporter holds the sources the report is collected from. They are
 // resolved once, as a report runs one command per night and per dataset.
 type balanceReporter struct {
 	prefix      string
 	cron        string
 	offsetHours int
-	hdfsPod     string
+	hdfs        hdfsReader
 	kafkaPod    string
 }
 
-func newBalanceReporter(prefix string, cron string, offsetHours int) (*balanceReporter, error) {
+func newBalanceReporter(reader hdfsReader, prefix string, cron string, offsetHours int) (*balanceReporter, error) {
 	if _, err := time.Parse("15:04", cron); err != nil {
 		return nil, fmt.Errorf("invalid cron time %q, expected HH:MM: %w", cron, err)
 	}
@@ -170,14 +268,9 @@ func newBalanceReporter(prefix string, cron string, offsetHours int) (*balanceRe
 		prefix:      prefix,
 		cron:        cron,
 		offsetHours: offsetHours,
-		hdfsPod:     resolvePod(hdfsNamespace, hdfsNameNodeSelector, hdfsPodFallback),
+		hdfs:        reader,
 		kafkaPod:    resolvePod(kafkaNamespace, kafkaBrokerSelector, kafkaPodFallback),
 	}, nil
-}
-
-func (r *balanceReporter) hdfs(args ...string) (string, error) {
-	command := append([]string{hdfsBin, "dfs"}, args...)
-	return execInPod(hdfsNamespace, r.hdfsPod, hdfsContainer, command)
 }
 
 // kafkaOffsets returns the offsets of a topic selection at the given time,
@@ -198,13 +291,18 @@ func (r *balanceReporter) kafkaOffsets(selector []string, timeSpec string) (map[
 
 // nights returns every observing night present in the raw dataset.
 func (r *balanceReporter) nights() ([]string, error) {
-	out, err := r.hdfs("-ls", path.Join(r.prefix, "raw"))
+	names, err := r.hdfs.list(path.Join(r.prefix, "raw"))
+	if errors.Is(err, os.ErrNotExist) {
+		// No run has written anything yet, e.g. on a fresh deployment
+		slog.Info("no raw dataset yet", "path", path.Join(r.prefix, "raw"))
+		return []string{}, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("unable to list nights under %s/raw: %w", r.prefix, err)
 	}
 
 	nights := make([]string, 0)
-	for _, name := range parseListing(out) {
+	for _, name := range names {
 		if _, err := time.Parse("20060102", name); err == nil {
 			nights = append(nights, name)
 		}
@@ -248,25 +346,25 @@ func (r *balanceReporter) balance(night string) (nightBalance, error) {
 func (r *balanceReporter) consumed(night string) int64 {
 	checkpoint := path.Join(r.prefix, "raw_checkpoint", night)
 
-	out, err := r.hdfs("-ls", path.Join(checkpoint, "commits"))
+	commits, err := r.hdfs.list(path.Join(checkpoint, "commits"))
 	if err != nil {
 		slog.Debug("no stream2raw checkpoint", "night", night, "path", checkpoint)
 		return unknownCount
 	}
 
-	last := lastBatch(parseListing(out))
+	last := lastBatch(commits)
 	if last == "" {
 		slog.Debug("no committed batch", "night", night, "path", checkpoint)
 		return unknownCount
 	}
 
-	out, err = r.hdfs("-cat", path.Join(checkpoint, "offsets", last))
+	content, err := r.hdfs.cat(path.Join(checkpoint, "offsets", last))
 	if err != nil {
 		slog.Debug("unable to read checkpoint batch", "night", night, "batch", last)
 		return unknownCount
 	}
 
-	total, err := parseCheckpointOffsets(out)
+	total, err := parseCheckpointOffsets(content)
 	if err != nil {
 		slog.Debug("unable to parse checkpoint batch", "night", night, "batch", last, "error", err)
 		return unknownCount
@@ -276,15 +374,9 @@ func (r *balanceReporter) consumed(night string) int64 {
 
 // dataset returns the number of files and the size in bytes of a dataset.
 func (r *balanceReporter) dataset(dataPath string) (int64, int64) {
-	out, err := r.hdfs("-count", dataPath)
+	files, bytes, err := r.hdfs.count(dataPath)
 	if err != nil {
-		slog.Debug("no such dataset", "path", dataPath)
-		return unknownCount, unknownCount
-	}
-
-	files, bytes, err := parseHdfsCount(out)
-	if err != nil {
-		slog.Debug("unable to parse hdfs count", "path", dataPath, "error", err)
+		slog.Debug("no such dataset", "path", dataPath, "error", err)
 		return unknownCount, unknownCount
 	}
 	return files, bytes
@@ -360,22 +452,6 @@ func runWindow(night string, cron string, offsetHours int) (time.Time, time.Time
 	return start, start.Add(24 * time.Hour), nil
 }
 
-// parseListing returns the base names of the entries listed by "hdfs dfs -ls".
-func parseListing(out string) []string {
-	names := make([]string, 0)
-
-	scanner := bufio.NewScanner(strings.NewReader(out))
-	for scanner.Scan() {
-		fields := strings.Fields(scanner.Text())
-		// permissions replicas owner group size date time path
-		if len(fields) < 8 {
-			continue
-		}
-		names = append(names, path.Base(fields[len(fields)-1]))
-	}
-	return names
-}
-
 // lastBatch returns the highest numbered batch of a checkpoint offsets
 // directory, which holds the offsets reached by the query.
 func lastBatch(names []string) string {
@@ -427,26 +503,6 @@ func parseCheckpointOffsets(content string) (int64, error) {
 		return unknownCount, err
 	}
 	return total, nil
-}
-
-// parseHdfsCount reads the output of "hdfs dfs -count <path>", made of the
-// directory count, the file count, the content size and the path.
-func parseHdfsCount(out string) (int64, int64, error) {
-	fields := strings.Fields(out)
-	if len(fields) < 3 {
-		return unknownCount, unknownCount, fmt.Errorf("unexpected hdfs count output: %q", out)
-	}
-
-	files, err := strconv.ParseInt(fields[1], 10, 64)
-	if err != nil {
-		return unknownCount, unknownCount, fmt.Errorf("unexpected file count in %q: %w", out, err)
-	}
-
-	bytes, err := strconv.ParseInt(fields[2], 10, 64)
-	if err != nil {
-		return unknownCount, unknownCount, fmt.Errorf("unexpected content size in %q: %w", out, err)
-	}
-	return files, bytes, nil
 }
 
 // parseOffsets reads the output of kafka-get-offsets.sh, one
