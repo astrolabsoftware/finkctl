@@ -86,7 +86,7 @@ number of messages pushed to each distribution topic.
 
 Counts are read from the sources of truth, so no Spark job is needed:
   - consumed alerts come from the offsets recorded in the stream2raw checkpoint
-  - distributed alerts come from the Kafka offsets of the output topics
+  - distributed alerts come from the Kafka offsets of the distribution topics
 
 Requires an HDFS-backed deployment. Everything but DISTRIB is read from HDFS,
 by connecting to the NameNode(s) given with --namenode (RPC port) and to the
@@ -108,9 +108,11 @@ Columns:
   RAW        total size of those files
   SCI(f)     number of parquet files written by raw2science
   SCI        total size of those files
-  DISTRIB    messages pushed to the fink_* topics, from their Kafka end
-             offsets. One alert reaching several filters is counted once per
-             topic.
+  DISTRIB    science alerts pushed by the distribution job, read from the end
+             offset of the per-night counting topic fink_ztf_<night>, which
+             receives every science alert once. The end offset is cumulative:
+             a night distributed twice (e.g. replayed) counts twice. The
+             fink_*_ztf filter topics are reported separately, per run window.
 
 IN(kafka) and DISTRIB are the two ends of the broker and the only pair that
 compares directly -- hence the TOTAL line summing just those two. The file
