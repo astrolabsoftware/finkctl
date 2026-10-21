@@ -11,6 +11,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"path"
 	"sort"
@@ -38,6 +39,9 @@ const (
 	// Reported when a value could not be determined, e.g. a dataset that does
 	// not exist yet.
 	unknownCount = int64(-1)
+	// Bound on one query of the production statistics, so that a slow API
+	// cannot hang the report.
+	prodAPITimeout = 30 * time.Second
 )
 
 var (
@@ -47,6 +51,7 @@ var (
 	balanceNightOffset int
 	balanceNamenode    string
 	balanceHdfsUser    string
+	balanceProdAPI     string
 )
 
 // topicCount is the number of messages a filter topic received during one run
@@ -73,6 +78,8 @@ type nightBalance struct {
 	windowStart time.Time
 	windowEnd   time.Time
 	perTopic    []topicCount
+	// nil when the production statistics are not asked for or not available
+	prod *prodStats
 }
 
 // getBalanceCmd represents the "get balance" command
@@ -114,6 +121,14 @@ Columns:
              a night distributed twice (e.g. replayed) counts twice. The
              fink_*_ztf filter topics are reported separately, per run window.
 
+With --prod-api, three more columns compare each night with the statistics
+of the production broker (POST <url>/api/v1/statistics):
+  PROD(raw)  alerts the production received, to compare with IN(kafka)
+  PROD(sci)  alerts the production kept as science, to compare with DISTRIB
+  CHECK      OK when both pairs are equal, else the signed gap of each one
+             (e.g. "sci -66292"); n/a when the API has no statistics for the
+             night (yet) or does not answer, which never fails the report.
+
 IN(kafka) and DISTRIB are the two ends of the broker and the only pair that
 compares directly -- hence the TOTAL line summing just those two. The file
 counts in between are micro-batch artefacts, not alert counts: raw2science
@@ -144,7 +159,11 @@ RAW files means nothing about how many alerts got through.`,
 			balances = append(balances, balance)
 		}
 
-		printReport(os.Stdout, balances, reporter.prefix)
+		if balanceProdAPI != "" {
+			addProdStats(balances, &http.Client{Timeout: prodAPITimeout}, balanceProdAPI)
+		}
+
+		printReport(os.Stdout, balances, reporter.prefix, balanceProdAPI != "")
 	},
 }
 
@@ -164,6 +183,8 @@ func init() {
 	cobra.CheckErr(getBalanceCmd.MarkFlagRequired("namenode"))
 	getBalanceCmd.Flags().StringVar(&balanceHdfsUser, "hdfs-user", defaultHdfsUser(),
 		"HDFS user to act as. Default: $HADOOP_USER_NAME, else 185 (the Spark containers uid)")
+	getBalanceCmd.Flags().StringVar(&balanceProdAPI, "prod-api", "",
+		"Fink API of the production broker, e.g. https://api.ztf.fink-portal.org, to compare each night with. Default: no comparison")
 }
 
 // defaultHdfsUser mirrors the Hadoop client: $HADOOP_USER_NAME when set, else
@@ -579,20 +600,121 @@ func resolveOffset(offsets map[string]int64, key string, fallback int64) int64 {
 	return offset
 }
 
-func printReport(w io.Writer, balances []nightBalance, prefix string) {
+// prodStats holds the counts the production broker publishes for a night:
+// the alerts it received and those it kept as science.
+type prodStats struct {
+	raw int64
+	sci int64
+}
+
+// fetchProdStats reads the statistics of a night from the Fink API of the
+// production broker. A night it does not know (yet) is an error, as are an
+// HTTP error and a timeout of the client.
+func fetchProdStats(client *http.Client, baseURL string, night string) (prodStats, error) {
+	url := strings.TrimRight(baseURL, "/") + "/api/v1/statistics"
+	query := fmt.Sprintf(`{"date": %q}`, night)
+	resp, err := client.Post(url, "application/json", strings.NewReader(query))
+	if err != nil {
+		return prodStats{}, fmt.Errorf("query %s for night %s: %w", url, night, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return prodStats{}, fmt.Errorf("query %s for night %s: HTTP %d", url, night, resp.StatusCode)
+	}
+
+	// The basic counts are strings, the class counts numbers: read both as
+	// text, without the float rounding of a plain number decoding.
+	var rows []map[string]any
+	decoder := json.NewDecoder(resp.Body)
+	decoder.UseNumber()
+	if err := decoder.Decode(&rows); err != nil {
+		return prodStats{}, fmt.Errorf("decode the statistics of night %s: %w", night, err)
+	}
+	if len(rows) == 0 {
+		return prodStats{}, fmt.Errorf("no production statistics for night %s", night)
+	}
+
+	stats := prodStats{}
+	for key, value := range map[string]*int64{"basic:raw": &stats.raw, "basic:sci": &stats.sci} {
+		count, err := strconv.ParseInt(fmt.Sprint(rows[0][key]), 10, 64)
+		if err != nil {
+			return prodStats{}, fmt.Errorf("invalid %s for night %s: %w", key, night, err)
+		}
+		*value = count
+	}
+	return stats, nil
+}
+
+// formatCheck compares the two ends of the broker with the production ones:
+// IN(kafka) with the alerts the production received, DISTRIB with those it
+// kept as science. It reads OK, or the signed gap of each differing pair.
+func formatCheck(consumed int64, distributed int64, prod *prodStats) string {
+	if prod == nil {
+		return "n/a"
+	}
+
+	gaps := []string{}
+	for _, pair := range []struct {
+		name  string
+		value int64
+		prod  int64
+	}{{"raw", consumed, prod.raw}, {"sci", distributed, prod.sci}} {
+		switch {
+		case pair.value == unknownCount:
+			gaps = append(gaps, pair.name+" n/a")
+		case pair.value != pair.prod:
+			gaps = append(gaps, fmt.Sprintf("%s %+d", pair.name, pair.value-pair.prod))
+		}
+	}
+	if len(gaps) == 0 {
+		return "OK"
+	}
+	return strings.Join(gaps, " ")
+}
+
+// addProdStats sets the production statistics of each night. A night the API
+// cannot give, whatever the reason, keeps none: the report never fails
+// because of the production.
+func addProdStats(balances []nightBalance, client *http.Client, baseURL string) {
+	for i := range balances {
+		stats, err := fetchProdStats(client, baseURL, balances[i].night)
+		if err != nil {
+			slog.Warn("no production statistics", "night", balances[i].night, "error", err)
+			continue
+		}
+		balances[i].prod = &stats
+	}
+}
+
+func printReport(w io.Writer, balances []nightBalance, prefix string, withProd bool) {
 	fmt.Fprintf(w, "Balance per observing night -- prefix %s\n\n", prefix)
 
 	table := tabwriter.NewWriter(w, 0, 0, 2, ' ', tabwriter.AlignRight)
-	fmt.Fprintln(table, "NIGHT\tIN(kafka)\tRAW(f)\tRAW\tSCI(f)\tSCI\tDISTRIB\t")
+	header := "NIGHT\tIN(kafka)\tRAW(f)\tRAW\tSCI(f)\tSCI\tDISTRIB\t"
+	if withProd {
+		header += "PROD(raw)\tPROD(sci)\tCHECK\t"
+	}
+	fmt.Fprintln(table, header)
 
 	totalConsumed, totalDistributed := int64(0), int64(0)
 	for _, balance := range balances {
-		fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t\n",
+		fmt.Fprintf(table, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t",
 			balance.night,
 			formatCount(balance.consumed),
 			formatCount(balance.rawFiles), formatBytes(balance.rawBytes),
 			formatCount(balance.sciFiles), formatBytes(balance.sciBytes),
 			formatCount(balance.distributed))
+		if withProd {
+			prodRaw, prodSci := unknownCount, unknownCount
+			if balance.prod != nil {
+				prodRaw, prodSci = balance.prod.raw, balance.prod.sci
+			}
+			fmt.Fprintf(table, "%s\t%s\t%s\t",
+				formatCount(prodRaw), formatCount(prodSci),
+				formatCheck(balance.consumed, balance.distributed, balance.prod))
+		}
+		fmt.Fprintln(table)
 
 		if balance.consumed != unknownCount {
 			totalConsumed += balance.consumed
