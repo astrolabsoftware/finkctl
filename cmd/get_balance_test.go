@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -276,5 +279,156 @@ func TestNativeReaderUnreachableNamenode(t *testing.T) {
 	}
 	if elapsed := time.Since(start); elapsed > hdfsDialTimeout+5*time.Second {
 		t.Errorf("connection attempt took %s, beyond the dial timeout", elapsed)
+	}
+}
+
+// A fake Fink API answering the statistics of one night, as the production
+// one does: a list of one row, the basic counts as strings, some class counts
+// as numbers.
+func newFakeProdAPI(t *testing.T, status int, body string, delay time.Duration) *httptest.Server {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/statistics" {
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		var query map[string]string
+		if err := json.NewDecoder(r.Body).Decode(&query); err != nil || query["date"] != "20261018" {
+			t.Errorf("unexpected query %v (%v)", query, err)
+		}
+		time.Sleep(delay)
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(server.Close)
+	return server
+}
+
+func TestFetchProdStats(t *testing.T) {
+	server := newFakeProdAPI(t, http.StatusOK,
+		`[{"basic:raw":"207188","basic:sci":"117935","class:ClG":3,"key:key":"ztf_20261018"}]`, 0)
+
+	stats, err := fetchProdStats(server.Client(), server.URL, "20261018")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	assert.Equal(t, stats, prodStats{raw: 207188, sci: 117935})
+}
+
+// The API answers an empty list for a night it does not know (yet).
+func TestFetchProdStatsUnknownNight(t *testing.T) {
+	server := newFakeProdAPI(t, http.StatusOK, `[]`, 0)
+
+	if _, err := fetchProdStats(server.Client(), server.URL, "20261018"); err == nil {
+		t.Fatal("expected an error for a night missing from the statistics")
+	}
+}
+
+func TestFetchProdStatsServerError(t *testing.T) {
+	server := newFakeProdAPI(t, http.StatusInternalServerError, `oops`, 0)
+
+	if _, err := fetchProdStats(server.Client(), server.URL, "20261018"); err == nil {
+		t.Fatal("expected an error on HTTP 500")
+	}
+}
+
+// A server that accepts the request but does not answer must not hang the
+// report.
+func TestFetchProdStatsTimeout(t *testing.T) {
+	server := newFakeProdAPI(t, http.StatusOK, `[]`, time.Second)
+	client := server.Client()
+	client.Timeout = 100 * time.Millisecond
+
+	start := time.Now()
+	if _, err := fetchProdStats(client, server.URL, "20261018"); err == nil {
+		t.Fatal("expected an error on a timeout")
+	}
+	if elapsed := time.Since(start); elapsed > 500*time.Millisecond {
+		t.Errorf("request took %s, beyond the client timeout", elapsed)
+	}
+}
+
+func TestFormatCheck(t *testing.T) {
+	prod := &prodStats{raw: 207188, sci: 117935}
+	cases := []struct {
+		name        string
+		consumed    int64
+		distributed int64
+		prod        *prodStats
+		want        string
+	}{
+		{"both equal", 207188, 117935, prod, "OK"},
+		{"science missing", 207188, 51643, prod, "sci -66292"},
+		{"both differ", 207190, 117936, prod, "raw +2 sci +1"},
+		{"distribution unknown", 207188, unknownCount, prod, "sci n/a"},
+		{"no production statistics", 207188, 117935, nil, "n/a"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, formatCheck(c.consumed, c.distributed, c.prod), c.want)
+		})
+	}
+}
+
+func reportBalances() []nightBalance {
+	return []nightBalance{
+		{night: "20261016", consumed: 195927, distributed: 105484,
+			prod: &prodStats{raw: 195927, sci: 105484}},
+		{night: "20261018", consumed: 207188, distributed: 51643,
+			prod: &prodStats{raw: 207188, sci: 117935}},
+		{night: "20261021", consumed: 1000, distributed: 500},
+	}
+}
+
+func TestPrintReportWithoutProd(t *testing.T) {
+	var out strings.Builder
+	printReport(&out, reportBalances(), "/user/185", false)
+
+	if strings.Contains(out.String(), "PROD") || strings.Contains(out.String(), "CHECK") {
+		t.Errorf("unexpected production columns:\n%s", out.String())
+	}
+}
+
+func TestPrintReportWithProd(t *testing.T) {
+	var out strings.Builder
+	printReport(&out, reportBalances(), "/user/185", true)
+
+	// Rows of the balance table only: the per-topic section below it starts
+	// with the nights too.
+	lines := map[string][]string{}
+	for _, line := range strings.Split(out.String(), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) > 0 && fields[0] == "TOTAL" {
+			break
+		}
+		if len(fields) > 0 {
+			lines[fields[0]] = fields
+		}
+	}
+	assert.Equal(t, lines["NIGHT"][len(lines["NIGHT"])-3:], []string{"PROD(raw)", "PROD(sci)", "CHECK"})
+	assert.Equal(t, lines["20261016"][len(lines["20261016"])-3:], []string{"195927", "105484", "OK"})
+	assert.Equal(t, lines["20261018"][len(lines["20261018"])-4:], []string{"207188", "117935", "sci", "-66292"})
+	assert.Equal(t, lines["20261021"][len(lines["20261021"])-3:], []string{"n/a", "n/a", "n/a"})
+}
+
+// One night known to the production, one it does not know: the report keeps
+// going, the second night stays without production statistics.
+func TestAddProdStats(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var query map[string]string
+		_ = json.NewDecoder(r.Body).Decode(&query)
+		if query["date"] == "20261018" {
+			_, _ = w.Write([]byte(`[{"basic:raw":"207188","basic:sci":"117935"}]`))
+			return
+		}
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+
+	balances := []nightBalance{{night: "20261018"}, {night: "20261021"}}
+	addProdStats(balances, server.Client(), server.URL)
+
+	assert.Equal(t, balances[0].prod, &prodStats{raw: 207188, sci: 117935})
+	if balances[1].prod != nil {
+		t.Errorf("expected no production statistics for 20261021, got %v", balances[1].prod)
 	}
 }
