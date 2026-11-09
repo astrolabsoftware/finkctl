@@ -256,7 +256,16 @@ type balanceReporter struct {
 	offsetHours int
 	hdfs        hdfsReader
 	kafkaPod    string
+	// exec runs a command in a pod, execInPod when nil; tests replace it
+	exec podExecutor
 }
+
+// noMatchingTopicMsg is printed by kafka-get-offsets.sh, which then exits 1,
+// when no topic matches its selection
+const noMatchingTopicMsg = "Could not match any topic-partitions"
+
+// podExecutor runs a command in a container of a pod and returns its output
+type podExecutor func(namespace string, pod string, container string, command []string) (string, error)
 
 func newBalanceReporter(reader hdfsReader, prefix string, cron string, offsetHours int) (*balanceReporter, error) {
 	if _, err := time.Parse("15:04", cron); err != nil {
@@ -284,7 +293,17 @@ func (r *balanceReporter) kafkaOffsets(selector []string, timeSpec string) (map[
 		"--time", timeSpec,
 	}, selector...)
 
-	out, err := execInPod(kafkaNamespace, r.kafkaPod, kafkaContainer, command)
+	exec := r.exec
+	if exec == nil {
+		exec = execInPod
+	}
+	out, err := exec(kafkaNamespace, r.kafkaPod, kafkaContainer, command)
+	if err != nil && strings.Contains(out, noMatchingTopicMsg) {
+		// No topic matches the selection yet, e.g. before the broker
+		// distributes its first alert: there is no offset, not an error.
+		slog.Debug("no topic matches", "selector", selector)
+		return map[string]int64{}, nil
+	}
 	if err != nil {
 		return nil, err
 	}
