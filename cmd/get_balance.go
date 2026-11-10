@@ -301,7 +301,7 @@ func (r *balanceReporter) kafkaOffsets(selector []string, timeSpec string) (map[
 	if err != nil && strings.Contains(out, noMatchingTopicMsg) {
 		// No topic matches the selection yet, e.g. before the broker
 		// distributes its first alert: there is no offset, not an error.
-		slog.Debug("no topic matches", "selector", selector)
+		slog.Info("no Kafka topic available yet", "selector", selector)
 		return map[string]int64{}, nil
 	}
 	if err != nil {
