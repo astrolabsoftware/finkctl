@@ -278,3 +278,36 @@ func TestNativeReaderUnreachableNamenode(t *testing.T) {
 		t.Errorf("connection attempt took %s, beyond the dial timeout", elapsed)
 	}
 }
+
+// fakeExec answers every command run in a pod with a fixed output and error.
+func fakeExec(out string, err error) podExecutor {
+	return func(namespace string, pod string, container string, command []string) (string, error) {
+		return out, err
+	}
+}
+
+// Before the broker distributes its first alert, no filter topic exists, and
+// kafka-get-offsets.sh exits 1 instead of printing nothing: the report must be
+// empty, not fail, so that it succeeds and is simply retried later.
+func TestFilterCountsWithoutFilterTopic(t *testing.T) {
+	reporter := &balanceReporter{exec: fakeExec(
+		"Error occurred: Could not match any topic-partitions with the specified filters\n",
+		errors.New("command terminated with exit code 1"))}
+
+	counts, err := reporter.filterCounts(time.Now().Add(-time.Hour), time.Now())
+
+	assert.Equal(t, err, nil)
+	assert.Equal(t, len(counts), 0)
+}
+
+// Any other failure to read the offsets (unreachable broker, denied exec)
+// still fails the report.
+func TestFilterCountsFailsOnOtherErrors(t *testing.T) {
+	reporter := &balanceReporter{exec: fakeExec(
+		"Error occurred: Timed out waiting for a node assignment\n",
+		errors.New("command terminated with exit code 1"))}
+
+	_, err := reporter.filterCounts(time.Now().Add(-time.Hour), time.Now())
+
+	assert.Equal(t, err != nil, true)
+}
