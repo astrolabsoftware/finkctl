@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -52,6 +53,7 @@ var (
 	balanceNamenode    string
 	balanceHdfsUser    string
 	balanceProdAPI     string
+	balanceKafka       string
 )
 
 // topicCount is the number of messages a filter topic received during one run
@@ -101,6 +103,12 @@ DataNodes, whether HDFS runs in the cluster or outside it. The command must
 run where both are reachable, typically in a pod of the cluster. A broker
 storing its datasets on S3 has no HDFS to read and the command fails.
 
+DISTRIB and the filter topics are read from Kafka by running
+kafka-get-offsets.sh in a Kafka broker pod, which needs the pods/exec right in
+the kafka namespace. With --kafka, they are read directly from the given
+bootstrap server(s) instead, e.g. the plain listener
+kafka-cluster-kafka-bootstrap.kafka:9092 from a pod of the cluster.
+
 Columns:
   NIGHT      observing night (YYYYMMDD), one row per night found under
              <prefix>/raw
@@ -139,7 +147,11 @@ RAW files means nothing about how many alerts got through.`,
 		cobra.CheckErr(err)
 		defer reader.close()
 
-		reporter, err := newBalanceReporter(reader, balancePrefix, balanceCron, balanceNightOffset)
+		kafka, err := newKafkaReader(balanceKafka)
+		cobra.CheckErr(err)
+		defer kafka.close()
+
+		reporter, err := newBalanceReporter(reader, kafka, balancePrefix, balanceCron, balanceNightOffset)
 		cobra.CheckErr(err)
 
 		nights := []string{balanceNight}
@@ -185,6 +197,18 @@ func init() {
 		"HDFS user to act as. Default: $HADOOP_USER_NAME, else 185 (the Spark containers uid)")
 	getBalanceCmd.Flags().StringVar(&balanceProdAPI, "prod-api", "",
 		"Fink API of the production broker, e.g. https://api.ztf.fink-portal.org, to compare each night with. Default: no comparison")
+	getBalanceCmd.Flags().StringVar(&balanceKafka, "kafka", "",
+		"Kafka bootstrap server(s) to read the offsets from directly, host:port[,host:port], e.g. "+kafkaBootstrapServer+
+			". Default: run kafka-get-offsets.sh in the Kafka broker pod")
+}
+
+// newKafkaReader reads Kafka natively from the given bootstrap servers, or
+// through the broker pod when none is given.
+func newKafkaReader(bootstrap string) (kafkaReader, error) {
+	if bootstrap == "" {
+		return newExecKafkaReader(), nil
+	}
+	return newNativeKafkaReader(strings.Split(bootstrap, ","))
 }
 
 // defaultHdfsUser mirrors the Hadoop client: $HADOOP_USER_NAME when set, else
@@ -276,19 +300,10 @@ type balanceReporter struct {
 	cron        string
 	offsetHours int
 	hdfs        hdfsReader
-	kafkaPod    string
-	// exec runs a command in a pod, execInPod when nil; tests replace it
-	exec podExecutor
+	kafka       kafkaReader
 }
 
-// noMatchingTopicMsg is printed by kafka-get-offsets.sh, which then exits 1,
-// when no topic matches its selection
-const noMatchingTopicMsg = "Could not match any topic-partitions"
-
-// podExecutor runs a command in a container of a pod and returns its output
-type podExecutor func(namespace string, pod string, container string, command []string) (string, error)
-
-func newBalanceReporter(reader hdfsReader, prefix string, cron string, offsetHours int) (*balanceReporter, error) {
+func newBalanceReporter(reader hdfsReader, kafka kafkaReader, prefix string, cron string, offsetHours int) (*balanceReporter, error) {
 	if _, err := time.Parse("15:04", cron); err != nil {
 		return nil, fmt.Errorf("invalid cron time %q, expected HH:MM: %w", cron, err)
 	}
@@ -301,34 +316,8 @@ func newBalanceReporter(reader hdfsReader, prefix string, cron string, offsetHou
 		cron:        cron,
 		offsetHours: offsetHours,
 		hdfs:        reader,
-		kafkaPod:    resolvePod(kafkaNamespace, kafkaBrokerSelector, kafkaPodFallback),
+		kafka:       kafka,
 	}, nil
-}
-
-// kafkaOffsets returns the offsets of a topic selection at the given time,
-// which is -1 (latest), -2 (earliest) or a number of milliseconds since epoch.
-func (r *balanceReporter) kafkaOffsets(selector []string, timeSpec string) (map[string]int64, error) {
-	command := append([]string{
-		kafkaOffsetsBin,
-		"--bootstrap-server", kafkaBootstrapServer,
-		"--time", timeSpec,
-	}, selector...)
-
-	exec := r.exec
-	if exec == nil {
-		exec = execInPod
-	}
-	out, err := exec(kafkaNamespace, r.kafkaPod, kafkaContainer, command)
-	if err != nil && strings.Contains(out, noMatchingTopicMsg) {
-		// No topic matches the selection yet, e.g. before the broker
-		// distributes its first alert: there is no offset, not an error.
-		slog.Info("no Kafka topic available yet", "selector", selector)
-		return map[string]int64{}, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return parseOffsets(out), nil
 }
 
 // nights returns every observing night present in the raw dataset.
@@ -427,7 +416,7 @@ func (r *balanceReporter) dataset(dataPath string) (int64, int64) {
 // distributed returns the number of science alerts pushed to the per-night
 // counting topic.
 func (r *balanceReporter) distributed(night string) int64 {
-	offsets, err := r.kafkaOffsets([]string{"--topic", countingTopicPrefix + night}, "-1")
+	offsets, err := r.kafka.offsets(regexp.QuoteMeta(countingTopicPrefix+night), offsetLatest)
 	if err != nil || len(offsets) == 0 {
 		slog.Debug("no counting topic", "night", night)
 		return unknownCount
@@ -445,9 +434,7 @@ func (r *balanceReporter) distributed(night string) int64 {
 // filterCounts returns the number of messages each filter topic received during
 // the run window.
 func (r *balanceReporter) filterCounts(start time.Time, end time.Time) ([]topicCount, error) {
-	selector := []string{"--topic-partitions", filterTopicPattern}
-
-	hwm, err := r.kafkaOffsets(selector, "-1")
+	hwm, err := r.kafka.offsets(filterTopicPattern, offsetLatest)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read the offsets of %s: %w", filterTopicPattern, err)
 	}
@@ -455,24 +442,20 @@ func (r *balanceReporter) filterCounts(start time.Time, end time.Time) ([]topicC
 		return nil, nil
 	}
 
-	earliest, err := r.kafkaOffsets(selector, "-2")
+	earliest, err := r.kafka.offsets(filterTopicPattern, offsetEarliest)
 	if err != nil {
 		return nil, err
 	}
-	startOffsets, err := r.kafkaOffsets(selector, epochMillis(start))
+	startOffsets, err := r.kafka.offsets(filterTopicPattern, start.UnixMilli())
 	if err != nil {
 		return nil, err
 	}
-	endOffsets, err := r.kafkaOffsets(selector, epochMillis(end))
+	endOffsets, err := r.kafka.offsets(filterTopicPattern, end.UnixMilli())
 	if err != nil {
 		return nil, err
 	}
 
 	return computeDeltas(hwm, earliest, startOffsets, endOffsets), nil
-}
-
-func epochMillis(t time.Time) string {
-	return strconv.FormatInt(t.UnixMilli(), 10)
 }
 
 // runWindow returns the window during which the run processing the given night
