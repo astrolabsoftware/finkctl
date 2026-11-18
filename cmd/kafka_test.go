@@ -275,3 +275,18 @@ func TestNativeReaderUnreachableBroker(t *testing.T) {
 		t.Errorf("lookup took %s, beyond the timeout", elapsed)
 	}
 }
+
+// A bootstrap list with spaces after the commas, or a trailing comma, gives
+// clean host:port entries.
+func TestSplitHosts(t *testing.T) {
+	got := splitHosts(" a:9092, b:9092 ,,c:9092,")
+	want := []string{"a:9092", "b:9092", "c:9092"}
+	if len(got) != len(want) {
+		t.Fatalf("splitHosts = %q, want %q", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("splitHosts = %q, want %q", got, want)
+		}
+	}
+}

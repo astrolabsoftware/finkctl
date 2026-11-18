@@ -173,8 +173,11 @@ func matchingTopics(details kadm.TopicDetails, pattern *regexp.Regexp) []string 
 
 // listedOffsets turns a kadm listing into a map keyed by "topic:partition",
 // the shape parseOffsets gives for kafka-get-offsets.sh. Like that tool, it
-// skips a partition whose offset could not be read, with a warning, and one
-// without an offset (-1).
+// skips a partition whose offset could not be read, with a warning.
+// kafka-get-offsets.sh leaves out a partition with no message after the
+// timestamp, while kadm returns its end offset instead; computeDeltas falls
+// back to the end offset in that case, so both give the same count. The
+// negative-offset check is only a guard.
 func listedOffsets(listed kadm.ListedOffsets) map[string]int64 {
 	offsets := make(map[string]int64)
 	listed.Each(func(o kadm.ListedOffset) {

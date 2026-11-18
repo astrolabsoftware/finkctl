@@ -208,7 +208,19 @@ func newKafkaReader(bootstrap string) (kafkaReader, error) {
 	if bootstrap == "" {
 		return newExecKafkaReader(), nil
 	}
-	return newNativeKafkaReader(strings.Split(bootstrap, ","))
+	return newNativeKafkaReader(splitHosts(bootstrap))
+}
+
+// splitHosts splits a comma-separated host:port list, dropping the spaces
+// around each entry and any empty entries, so "a:9092, b:9092" works.
+func splitHosts(list string) []string {
+	var hosts []string
+	for _, h := range strings.Split(list, ",") {
+		if h = strings.TrimSpace(h); h != "" {
+			hosts = append(hosts, h)
+		}
+	}
+	return hosts
 }
 
 // defaultHdfsUser mirrors the Hadoop client: $HADOOP_USER_NAME when set, else
