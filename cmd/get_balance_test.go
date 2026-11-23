@@ -465,3 +465,56 @@ func TestAddProdStats(t *testing.T) {
 		t.Errorf("expected no production statistics for 20261021, got %v", balances[1].prod)
 	}
 }
+
+func TestBalanceVerdict(t *testing.T) {
+	cases := []struct {
+		consumed, distributed int64
+		want                  string
+	}{
+		{1234, 567, "BALANCE: ok consumed=1234 distributed=567"},
+		{0, 0, "BALANCE: empty consumed=0 distributed=0"},
+		{10, 0, "BALANCE: empty consumed=10 distributed=0"},
+		{0, 10, "BALANCE: empty consumed=0 distributed=10"},
+	}
+	for _, c := range cases {
+		assert.Equal(t, balanceVerdict(c.consumed, c.distributed), c.want)
+	}
+}
+
+// The verdict line follows the TOTAL row, before the per-topic section, and
+// sums the same counts: 195927+207188+1000 and 105484+51643+500. A night with
+// an unknown count is left out, as in TOTAL.
+func TestPrintReportVerdict(t *testing.T) {
+	balances := append(reportBalances(),
+		nightBalance{night: "20261022", consumed: unknownCount, distributed: unknownCount})
+	var out strings.Builder
+	printReport(&out, balances, "/user/185", false)
+
+	lines := strings.Split(out.String(), "\n")
+	total, verdict, perTopic := -1, -1, -1
+	for i, line := range lines {
+		switch {
+		case strings.HasPrefix(strings.TrimSpace(line), "TOTAL"):
+			total = i
+		case line == "BALANCE: ok consumed=404115 distributed=157627":
+			verdict = i
+		case strings.HasPrefix(line, "Distribution per filter topic"):
+			perTopic = i
+		}
+	}
+	if total < 0 || verdict < total || perTopic < verdict {
+		t.Errorf("verdict line missing or misplaced (TOTAL %d, BALANCE %d, per topic %d):\n%s",
+			total, verdict, perTopic, out.String())
+	}
+}
+
+func TestPrintNoNightVerdict(t *testing.T) {
+	var out strings.Builder
+	printNoNight(&out, "/user/185")
+	if !strings.Contains(out.String(), "No observing night under /user/185/raw yet\n") {
+		t.Errorf("missing no-night message:\n%s", out.String())
+	}
+	if !strings.HasSuffix(out.String(), "BALANCE: empty consumed=0 distributed=0\n") {
+		t.Errorf("missing empty verdict:\n%s", out.String())
+	}
+}

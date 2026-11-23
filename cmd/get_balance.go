@@ -148,7 +148,7 @@ RAW files means nothing about how many alerts got through.`,
 			cobra.CheckErr(err)
 		}
 		if len(nights) == 0 {
-			fmt.Printf("No observing night under %s/raw yet\n", reporter.prefix)
+			printNoNight(os.Stdout, reporter.prefix)
 			return
 		}
 
@@ -706,6 +706,24 @@ func addProdStats(balances []nightBalance, client *http.Client, baseURL string) 
 	}
 }
 
+// balanceVerdict is the machine-readable line closing the balance table,
+// read by the fink-broker e2e checks: "ok" when alerts went through both ends
+// of the broker, "empty" otherwise (the jobs may still be warming up). It is a
+// snapshot of when the report ran, and leaves the exit code unchanged.
+func balanceVerdict(consumed int64, distributed int64) string {
+	state := "empty"
+	if consumed > 0 && distributed > 0 {
+		state = "ok"
+	}
+	return fmt.Sprintf("BALANCE: %s consumed=%d distributed=%d", state, consumed, distributed)
+}
+
+// printNoNight reports a prefix without any observing night yet.
+func printNoNight(w io.Writer, prefix string) {
+	fmt.Fprintf(w, "No observing night under %s/raw yet\n", prefix)
+	fmt.Fprintln(w, balanceVerdict(0, 0))
+}
+
 func printReport(w io.Writer, balances []nightBalance, prefix string, withProd bool) {
 	fmt.Fprintf(w, "Balance per observing night -- prefix %s\n\n", prefix)
 
@@ -745,6 +763,7 @@ func printReport(w io.Writer, balances []nightBalance, prefix string, withProd b
 
 	fmt.Fprintf(table, "TOTAL\t%d\t\t\t\t\t%d\t\n", totalConsumed, totalDistributed)
 	table.Flush()
+	fmt.Fprintln(w, balanceVerdict(totalConsumed, totalDistributed))
 
 	fmt.Fprintln(w, "\nDistribution per filter topic, per run window")
 
