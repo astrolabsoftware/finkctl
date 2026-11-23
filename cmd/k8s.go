@@ -250,22 +250,20 @@ func getKafkaTopics() ([]string, error) {
 
 	out, err := execInPod(kafkaNamespace, pod, kafkaContainer, command)
 	if err != nil {
-		fmt.Printf("Error executing command: %v\n", err)
-		fmt.Println(out)
-		return nil, err
+		return nil, fmt.Errorf("cannot list the kafka topics: %w, output: %s", err, strings.TrimSpace(out))
 	}
 	// Filter the output for topics containing the filter string
 	topicNames := make([]string, 0)
 	scanner := bufio.NewScanner(strings.NewReader(out))
-	fmt.Println("Filtered Kafka topics:")
 	for scanner.Scan() {
 		line := scanner.Text()
 		topicNames = append(topicNames, line)
 	}
 
 	if err := scanner.Err(); err != nil {
-		fmt.Printf("Error reading output: %v\n", err)
+		return nil, fmt.Errorf("cannot read the kafka topics: %w", err)
 	}
+	slog.Debug("Kafka topics", "topics", topicNames)
 
 	return topicNames, nil
 }
