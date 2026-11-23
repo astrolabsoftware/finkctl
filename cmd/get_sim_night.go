@@ -48,26 +48,27 @@ var getSimNightCmd = &cobra.Command{
 Kafka topic. Wait for it until --timeout if the simulator has not written it
 yet. Fail at once if there are several (e.g. a reused cluster).`,
 	Run: func(cmd *cobra.Command, args []string) {
-		deadline := time.After(simNightTimeout)
-		for {
+		night := ""
+		err := pollUntil(simNightTimeout, 10*time.Second, func() (bool, error) {
 			topics, err := getKafkaTopics()
-			cobra.CheckErr(err)
-			night, err := parseSimNight(topics)
-			if err == nil {
-				fmt.Println(night)
-				return
+			if err != nil {
+				return false, err
 			}
-			if !errors.Is(err, errNoSimTopic) {
-				fmt.Fprintf(os.Stderr, "error: %s\n", err)
-				os.Exit(1)
+			night, err = parseSimNight(topics)
+			if errors.Is(err, errNoSimTopic) {
+				return false, nil
 			}
-			select {
-			case <-deadline:
-				fmt.Fprintf(os.Stderr, "error: no sim_ztf_public_<night> topic after %s\n", simNightTimeout)
-				os.Exit(1)
-			case <-time.After(10 * time.Second):
-			}
+			return err == nil, err
+		})
+		if errors.Is(err, errPollTimeout) {
+			fmt.Fprintf(os.Stderr, "error: no sim_ztf_public_<night> topic after %s\n", simNightTimeout)
+			os.Exit(1)
 		}
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %s\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(night)
 	},
 }
 

@@ -4,10 +4,12 @@ Copyright © 2023 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -37,28 +39,33 @@ topics are listed. Topics found but not expected are logged, not an error.`,
 
 		start := time.Now()
 		slog.Info("Wait for kafka topics produced by the fink-broker", "expected", len(required))
-		deadline := time.After(timeout)
-		for {
+		// Written by the poll, read on timeout while a poll may still run
+		var mu sync.Mutex
+		missing := required
+		err = pollUntil(timeout, 10*time.Second, func() (bool, error) {
 			topics, err := getFinkTopics()
-			cobra.CheckErr(err)
-			missing, extra := compareTopics(required, topics)
+			if err != nil {
+				return false, err
+			}
+			stillMissing, extra := compareTopics(required, topics)
+			mu.Lock()
+			missing = stillMissing
+			mu.Unlock()
 			slog.Info("Found topics", "elapsedTime", time.Since(start).Round(time.Second),
-				"found", len(topics), "missing", missing)
+				"found", len(topics), "missing", stillMissing)
 			if len(extra) > 0 {
 				slog.Info("Topics found but not expected", "topics", extra)
 			}
-			if len(missing) == 0 {
-				fmt.Printf("Condition met: found the %d expected fink topics\n", len(required))
-				return
-			}
-			select {
-			case <-deadline:
-				fmt.Fprintf(os.Stderr, "error: timed out waiting for topics, missing: %s\n",
-					strings.Join(missing, ", "))
-				os.Exit(1)
-			case <-time.After(10 * time.Second):
-			}
+			return len(stillMissing) == 0, nil
+		})
+		if errors.Is(err, errPollTimeout) {
+			mu.Lock()
+			fmt.Fprintf(os.Stderr, "error: timed out waiting for topics, missing: %s\n",
+				strings.Join(missing, ", "))
+			os.Exit(1)
 		}
+		cobra.CheckErr(err)
+		fmt.Printf("Condition met: found the %d expected fink topics\n", len(required))
 	},
 }
 
