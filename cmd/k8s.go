@@ -21,8 +21,6 @@ import (
 const (
 	kubeConfigEnvName         = "KUBECONFIG"
 	kubeConfigDefaultFilename = ".kube/config"
-	secretNameKafkaJaas       = "fink-kafka-jaas"
-	secretPathKafkaJaas       = "/etc/fink-broker"
 )
 
 func getKubeConfig() string {

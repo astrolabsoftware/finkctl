@@ -1,5 +1,1 @@
 * TODO add unit test for "night" param, on topic name
-* TODO add support for cpu/memory/instances config for each task, and not only at the run level
-* TODO implement wait for spark task (distribute, raw2science, stream2raw)
-* DONE implement finkctl run/delete for spark task
-* TODO Add option finctk s3 makebucket --port-forward
