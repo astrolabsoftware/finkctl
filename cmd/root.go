@@ -24,7 +24,6 @@ import (
 )
 
 var (
-	dryRun    bool
 	verbosity int
 )
 
@@ -32,16 +31,7 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "finkctl",
 	Short: "Command-line tool for managing and interacting with the Fink broker and its components on Spark over Kubernetes",
-	Long: `finkctl is a command-line tool for managing and interacting with the Fink broker and its components.
-
-	finkctl configuration directory is:
-	1. directory referenced by FINKCONFIG environment variable
-	2. current working directory
-	3. $HOME/.finkctl
-	Example of configuration files are available here:
-	- https://github.com/astrolabsoftware/fink-broker/blob/master/itest/finkctl.yaml
-	- https://github.com/astrolabsoftware/fink-broker/blob/master/itest/finkctl.secret.yaml
-`,
+	Long:  `finkctl is a command-line tool for managing and interacting with the Fink broker and its components.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
@@ -59,8 +49,6 @@ func Execute() {
 func init() {
 	rootCmd.PersistentFlags().IntVarP(&verbosity, "verbosity", "v", 0, "Verbosity level (-v0 for minimal, -v2 for maximum)")
 	cobra.OnInitialize(initLogger)
-
-	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Only print the command")
 }
 
 // setUpLogs set the log output ans the log level
