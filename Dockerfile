@@ -28,7 +28,6 @@ RUN go mod download
 
 COPY main.go ./
 COPY cmd/ ./cmd/
-COPY resources/ ./resources/
 
 RUN CGO_ENABLED=0 go build -trimpath -o /finkctl .
 

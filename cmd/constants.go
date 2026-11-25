@@ -1,9 +1,8 @@
 package cmd
 
 const (
-	finkPrefix      = "fink_"
-	kafkaNamespace  = "kafka"
-	kafkaSecretName = "fink-producer"
+	finkPrefix     = "fink_"
+	kafkaNamespace = "kafka"
 
 	// Kafka cluster access: the CLI tools are run inside a broker pod, whose
 	// name is resolved from the Strimzi labels and falls back to the

@@ -6,7 +6,6 @@ sourcePathes:
   - Dockerfile
   - main.go
   - cmd
-  - resources
   - go.mod
   - go.sum
 dependencies:
